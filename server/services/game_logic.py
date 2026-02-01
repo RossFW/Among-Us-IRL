@@ -110,8 +110,8 @@ def start_game(game: GameModel) -> dict:
         return {"success": False, "error": "Game not in lobby"}
 
     num_players = len(game.players)
-    if num_players < 2:
-        return {"success": False, "error": "Need at least 2 players"}
+    if num_players < 4:
+        return {"success": False, "error": "Need at least 4 players"}
 
     # Calculate total special roles needed
     total_special = game.settings.num_impostors

@@ -229,7 +229,8 @@ if (!sessionToken) {
 
 // Connect WebSocket
 function connectWS() {
-    ws = new WebSocket(`ws://${window.location.host}/ws/${gameCode}/${sessionToken}`);
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${gameCode}/${sessionToken}`);
 
     ws.onopen = () => {
         console.log('WebSocket connected');

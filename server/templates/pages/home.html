@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Among Us IRL{% endblock %}
+
+{% block content %}
+<div class="container home-screen" id="home-screen">
+    <div class="logo">
+        <h1>AMONG US</h1>
+        <p class="subtitle">IRL Edition</p>
+    </div>
+
+    <div class="form-section">
+        <div class="input-group">
+            <label for="player-name">Your Name</label>
+            <input type="text" id="player-name" placeholder="Enter your name" maxlength="20" autocomplete="off">
+        </div>
+
+        <button class="btn btn-primary btn-large" id="create-game-btn">
+            CREATE GAME
+        </button>
+
+        <div class="divider">
+            <span>or join existing</span>
+        </div>
+
+        <div class="input-group">
+            <label for="game-code">Game Code</label>
+            <input type="text" id="game-code" placeholder="ABCD" maxlength="4" autocomplete="off" style="text-transform: uppercase; text-align: center; letter-spacing: 0.5em;">
+        </div>
+
+        <button class="btn btn-secondary btn-large" id="join-game-btn">
+            JOIN GAME
+        </button>
+    </div>
+
+    <div class="error-message" id="error-message"></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const playerNameInput = document.getElementById('player-name');
+    const gameCodeInput = document.getElementById('game-code');
+    const createBtn = document.getElementById('create-game-btn');
+    const joinBtn = document.getElementById('join-game-btn');
+    const errorEl = document.getElementById('error-message');
+
+    // Check for existing session
+    const existingSession = localStorage.getItem('session_token');
+    if (existingSession) {
+        // Try to reconnect
+        fetch('/api/reconnect?session_token=' + existingSession, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/game/' + data.code;
+                }
+            })
+            .catch(() => {
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('player_id');
+            });
+    }
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+        setTimeout(() => errorEl.style.display = 'none', 3000);
+    }
+
+    createBtn.addEventListener('click', async () => {
+        const name = playerNameInput.value.trim();
+        if (!name) {
+            showError('Please enter your name');
+            return;
+        }
+
+        createBtn.disabled = true;
+        createBtn.textContent = 'CREATING...';
+
+        try {
+            const response = await fetch('/api/games', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player_name: name })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                localStorage.setItem('session_token', data.session_token);
+                localStorage.setItem('player_id', data.player_id);
+                window.location.href = '/game/' + data.code;
+            } else {
+                showError(data.detail || 'Failed to create game');
+            }
+        } catch (e) {
+            showError('Connection error');
+        } finally {
+            createBtn.disabled = false;
+            createBtn.textContent = 'CREATE GAME';
+        }
+    });
+
+    joinBtn.addEventListener('click', async () => {
+        const name = playerNameInput.value.trim();
+        const code = gameCodeInput.value.trim().toUpperCase();
+
+        if (!name) {
+            showError('Please enter your name');
+            return;
+        }
+        if (!code || code.length !== 4) {
+            showError('Please enter a 4-letter game code');
+            return;
+        }
+
+        joinBtn.disabled = true;
+        joinBtn.textContent = 'JOINING...';
+
+        try {
+            const response = await fetch('/api/games/' + code + '/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player_name: name })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                localStorage.setItem('session_token', data.session_token);
+                localStorage.setItem('player_id', data.player_id);
+                window.location.href = '/game/' + data.code;
+            } else {
+                showError(data.detail || 'Failed to join game');
+            }
+        } catch (e) {
+            showError('Connection error');
+        } finally {
+            joinBtn.disabled = false;
+            joinBtn.textContent = 'JOIN GAME';
+        }
+    });
+
+    // Allow enter key to submit
+    playerNameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            if (gameCodeInput.value.trim()) {
+                joinBtn.click();
+            }
+        }
+    });
+
+    gameCodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') joinBtn.click();
+    });
+});
+</script>
+{% endblock %}

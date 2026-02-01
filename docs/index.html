@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Among Us IRL - Join Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 900;
+            color: #e94560;
+            margin-bottom: 8px;
+            letter-spacing: 0.1em;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            margin-bottom: 40px;
+        }
+
+        .game-url-section {
+            background: #16213e;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+
+        .label {
+            color: #a0a0a0;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .join-btn {
+            display: block;
+            background: #e94560;
+            color: white;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background 0.2s;
+        }
+
+        .join-btn:hover {
+            background: #ff6b6b;
+        }
+
+        .no-game {
+            color: #a0a0a0;
+            padding: 20px;
+        }
+
+        .instructions {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: left;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #a0a0a0;
+        }
+
+        .instructions h3 {
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AMONG US</h1>
+        <p class="subtitle">IRL Edition</p>
+
+        <div class="game-url-section">
+            <p class="label">Current Game Session</p>
+
+            <!--
+                =============================================
+                GAME HOST: Update this URL before each game!
+
+                1. Start your server with: python run.py --tunnel
+                2. Copy the Cloudflare URL (https://xxxx-yyyy.trycloudflare.com)
+                3. Replace the URL in the href below
+                4. Commit and push to GitHub
+                =============================================
+            -->
+
+            <!-- UNCOMMENT AND UPDATE THIS WHEN A GAME IS ACTIVE: -->
+            <!--
+            <a href="https://YOUR-CLOUDFLARE-URL-HERE.trycloudflare.com" class="join-btn">
+                Join Game
+            </a>
+            -->
+
+            <!-- COMMENT THIS OUT WHEN A GAME IS ACTIVE: -->
+            <p class="no-game">No active game right now.<br>Check back when the host starts a session!</p>
+
+        </div>
+
+        <div class="instructions">
+            <h3>How to Join</h3>
+            <ol>
+                <li>Wait for the host to start a game session</li>
+                <li>Click the "Join Game" button when it appears</li>
+                <li>Enter your name and the 4-letter game code</li>
+                <li>Add to Home Screen for the best experience!</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

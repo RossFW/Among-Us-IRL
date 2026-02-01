@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+
+{% block title %}Game {{ code }} - Among Us IRL{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="screen">
+        <div class="game-code-display">
+            <span class="label">Game Code</span>
+            <span class="code" id="display-code">{{ code }}</span>
+        </div>
+
+        <div class="players-section">
+            <h2>Players <span id="player-count">(0)</span></h2>
+            <div id="player-list" class="player-list"></div>
+        </div>
+
+        <div id="host-controls" class="host-controls" style="display: none;">
+            <h3>Settings</h3>
+            <div class="settings-grid">
+                <div class="setting">
+                    <label>Tasks per player</label>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('tasks', -1)">-</button>
+                        <span id="setting-tasks">5</span>
+                        <button class="btn-small" onclick="adjustSetting('tasks', 1)">+</button>
+                    </div>
+                </div>
+                <div class="setting">
+                    <label>Impostors</label>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('impostors', -1)">-</button>
+                        <span id="setting-impostors">2</span>
+                        <button class="btn-small" onclick="adjustSetting('impostors', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="role-toggles">
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-jester" onchange="toggleRole('jester')">
+                    <span>Jester</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-lonewolf" onchange="toggleRole('lonewolf')">
+                    <span>Lone Wolf</span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-minion" onchange="toggleRole('minion')">
+                    <span>Minion</span>
+                </label>
+            </div>
+
+            <!-- Task Management -->
+            <div class="task-management">
+                <div class="section-header" onclick="toggleTaskList()">
+                    <h4>Manage Tasks</h4>
+                    <span id="task-toggle-icon">+</span>
+                </div>
+                <div id="task-management-content" class="collapsible-content" style="display: none;">
+                    <div class="add-task-form">
+                        <input type="text" id="new-task-input" placeholder="New task name" maxlength="30">
+                        <button class="btn-small" onclick="addTask()">Add</button>
+                    </div>
+                    <div id="available-tasks-list" class="available-tasks-list"></div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-large" id="start-game-btn" onclick="startGame()">
+                START GAME
+            </button>
+        </div>
+
+        <!-- Rules Button (visible to all) -->
+        <button class="btn btn-secondary rules-btn" onclick="showRules()">
+            How to Play
+        </button>
+
+        <div id="waiting-message" class="waiting-message">
+            Waiting for host to start...
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen" style="display: none;">
+        <div class="role-display" id="role-display">
+            <span class="role-label">You are</span>
+            <span class="role-name" id="role-name">CREWMATE</span>
+            <p class="role-description" id="role-description"></p>
+        </div>
+
+        <div id="fellow-impostors" class="fellow-impostors" style="display: none;">
+            <span class="label">Fellow Impostors:</span>
+            <span id="impostor-names"></span>
+        </div>
+
+        <div class="task-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="progress-text">0% Tasks Complete</span>
+        </div>
+
+        <div class="tasks-section">
+            <h3>Your Tasks</h3>
+            <div id="task-list" class="task-list"></div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-warning btn-large" id="call-meeting-btn" onclick="callMeeting()">
+                CALL MEETING
+            </button>
+            <button class="btn btn-danger" id="im-dead-btn" onclick="markDead()">
+                I'M DEAD
+            </button>
+        </div>
+    </div>
+
+    <!-- Meeting Screen -->
+    <div id="meeting-screen" class="screen" style="display: none;">
+        <div class="meeting-header">
+            <h1>MEETING</h1>
+            <p id="meeting-caller"></p>
+        </div>
+
+        <div class="task-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="meeting-progress-fill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="meeting-progress-text">0% Tasks Complete</span>
+        </div>
+
+        <div class="meeting-players">
+            <div class="alive-section">
+                <h3>Alive</h3>
+                <div id="alive-list" class="player-list"></div>
+            </div>
+            <div class="dead-section">
+                <h3>Dead</h3>
+                <div id="dead-list" class="player-list"></div>
+            </div>
+        </div>
+
+        <button class="btn btn-secondary btn-large" id="end-meeting-btn" onclick="endMeeting()">
+            END MEETING
+        </button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="screen" style="display: none;">
+        <div class="gameover-header">
+            <h1 id="winner-text">CREWMATES WIN!</h1>
+        </div>
+
+        <div class="roles-reveal">
+            <h3>Roles</h3>
+            <div id="roles-list" class="roles-list"></div>
+        </div>
+
+        <button class="btn btn-primary btn-large" onclick="returnToLobby()">
+            PLAY AGAIN
+        </button>
+    </div>
+
+    <div class="error-message" id="error-message"></div>
+
+    <!-- Rules Modal -->
+    <div id="rules-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>How to Play</h2>
+                <button class="modal-close" onclick="hideRules()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="rule-section">
+                    <h3 class="role-crewmate">Crewmate</h3>
+                    <p>Complete all your tasks OR vote out all impostors to win. Work together to find who's lying!</p>
+                </div>
+                <div class="rule-section">
+                    <h3 class="role-impostor">Impostor</h3>
+                    <p>Eliminate crewmates until impostors equal or outnumber them. Blend in, fake tasks, and don't get caught!</p>
+                </div>
+                <div class="rule-section" id="rule-jester" style="display: none;">
+                    <h3 class="role-jester">Jester</h3>
+                    <p>Get yourself voted out during a meeting to win! Act suspicious, but not TOO suspicious...</p>
+                </div>
+                <div class="rule-section" id="rule-lonewolf" style="display: none;">
+                    <h3 class="role-lone-wolf">Lone Wolf</h3>
+                    <p>Be one of the last 2 players alive with no impostors remaining. You're on your own!</p>
+                </div>
+                <div class="rule-section" id="rule-minion" style="display: none;">
+                    <h3 class="role-minion">Minion</h3>
+                    <p>Help the impostors win! You know who they are, but you cannot kill. Misdirect the crew!</p>
+                </div>
+                <div class="rule-section">
+                    <h3>Gameplay</h3>
+                    <ul>
+                        <li><strong>Tasks:</strong> Physical tasks around the venue. Tap to mark complete.</li>
+                        <li><strong>Meetings:</strong> Anyone can call a meeting to discuss. Vote verbally in person!</li>
+                        <li><strong>Death:</strong> If eliminated, tap "I'm Dead" to update the game.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<audio id="siren-sound" preload="auto">
+    <source src="/static/sounds/siren.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const gameCode = '{{ code }}';
+const sessionToken = localStorage.getItem('session_token');
+const playerId = localStorage.getItem('player_id');
+
+let ws = null;
+let gameState = 'lobby';
+let isHost = false;
+let myRole = null;
+let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false };
+let availableTasks = [];
+
+// Redirect if no session
+if (!sessionToken) {
+    window.location.href = '/';
+}
+
+// Connect WebSocket
+function connectWS() {
+    ws = new WebSocket(`ws://${window.location.host}/ws/${gameCode}/${sessionToken}`);
+
+    ws.onopen = () => {
+        console.log('WebSocket connected');
+    };
+
+    ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleMessage(msg);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket closed, reconnecting...');
+        setTimeout(connectWS, 2000);
+    };
+
+    ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+    };
+}
+
+function handleMessage(msg) {
+    console.log('Received:', msg);
+
+    switch (msg.type) {
+        case 'state_sync':
+            handleStateSync(msg.payload);
+            break;
+        case 'player_joined':
+        case 'player_connected':
+        case 'player_disconnected':
+        case 'player_left':
+            refreshGame();
+            break;
+        case 'settings_changed':
+            settings = msg.payload;
+            updateSettingsUI();
+            break;
+        case 'tasks_updated':
+            availableTasks = msg.payload.tasks;
+            updateTasksUI();
+            break;
+        case 'game_started':
+            handleGameStart(msg.payload);
+            break;
+        case 'task_completed':
+            updateProgress(msg.payload.task_percentage);
+            break;
+        case 'meeting_called':
+            handleMeetingStart(msg.payload);
+            break;
+        case 'meeting_ended':
+            handleMeetingEnd();
+            break;
+        case 'player_died':
+            refreshGame();
+            break;
+        case 'game_ended':
+            handleGameEnd(msg.payload);
+            break;
+    }
+}
+
+function handleStateSync(payload) {
+    updatePlayers(payload.players);
+    updateProgress(payload.task_percentage);
+
+    if (payload.role_info) {
+        myRole = payload.role_info.role;
+        updateRoleUI(payload.role_info);
+    }
+
+    if (payload.game_state === 'playing') {
+        showScreen('game-screen');
+    } else if (payload.game_state === 'meeting') {
+        showScreen('meeting-screen');
+    } else if (payload.game_state === 'ended') {
+        showScreen('gameover-screen');
+    }
+}
+
+function updatePlayers(players) {
+    const list = document.getElementById('player-list');
+    const count = document.getElementById('player-count');
+
+    list.innerHTML = players.map(p => `
+        <div class="player-item ${p.connected ? '' : 'disconnected'} ${p.is_host ? 'host' : ''}">
+            <span class="player-name">${p.name}${p.is_host ? ' (Host)' : ''}</span>
+            <span class="status-dot ${p.connected ? 'online' : 'offline'}"></span>
+        </div>
+    `).join('');
+
+    count.textContent = `(${players.length})`;
+
+    // Check if current player is host
+    const me = players.find(p => p.id === playerId);
+    if (me) {
+        isHost = me.is_host;
+        document.getElementById('host-controls').style.display = isHost ? 'block' : 'none';
+        document.getElementById('waiting-message').style.display = isHost ? 'none' : 'block';
+    }
+}
+
+function updateSettingsUI() {
+    document.getElementById('setting-tasks').textContent = settings.tasks_per_player;
+    document.getElementById('setting-impostors').textContent = settings.num_impostors;
+    document.getElementById('toggle-jester').checked = settings.enable_jester;
+    document.getElementById('toggle-lonewolf').checked = settings.enable_lone_wolf;
+    document.getElementById('toggle-minion').checked = settings.enable_minion;
+}
+
+async function adjustSetting(type, delta) {
+    let update = {};
+    if (type === 'tasks') {
+        const newVal = Math.max(1, Math.min(10, settings.tasks_per_player + delta));
+        update.tasks_per_player = newVal;
+    } else if (type === 'impostors') {
+        const newVal = Math.max(1, Math.min(3, settings.num_impostors + delta));
+        update.num_impostors = newVal;
+    }
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update)
+    });
+}
+
+async function toggleRole(role) {
+    let update = {};
+    if (role === 'jester') update.enable_jester = document.getElementById('toggle-jester').checked;
+    if (role === 'lonewolf') update.enable_lone_wolf = document.getElementById('toggle-lonewolf').checked;
+    if (role === 'minion') update.enable_minion = document.getElementById('toggle-minion').checked;
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update)
+    });
+}
+
+async function startGame() {
+    const btn = document.getElementById('start-game-btn');
+    btn.disabled = true;
+    btn.textContent = 'STARTING...';
+
+    try {
+        const response = await fetch(`/api/games/${gameCode}/start?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            showError(data.detail || 'Failed to start game');
+        }
+    } catch (e) {
+        showError('Connection error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'START GAME';
+    }
+}
+
+function handleGameStart(payload) {
+    myRole = payload.role;
+    updateRoleUI(payload);
+    updateProgress(payload.task_percentage);
+    showScreen('game-screen');
+
+    // Play a short vibration on game start
+    if (navigator.vibrate) navigator.vibrate(200);
+}
+
+function updateRoleUI(roleInfo) {
+    const roleDisplay = document.getElementById('role-display');
+    const roleName = document.getElementById('role-name');
+    const roleDesc = document.getElementById('role-description');
+    const taskList = document.getElementById('task-list');
+    const fellowImpostors = document.getElementById('fellow-impostors');
+
+    roleName.textContent = roleInfo.role.toUpperCase();
+    roleDisplay.className = 'role-display role-' + roleInfo.role.toLowerCase().replace(' ', '-');
+
+    const descriptions = {
+        'Crewmate': 'Complete your tasks. Find the impostors.',
+        'Impostor': 'Eliminate crewmates. Don\'t get caught.',
+        'Jester': 'Get yourself voted out to win!',
+        'Lone Wolf': 'Survive until you\'re the last one standing.',
+        'Minion': 'Help the impostors win. You cannot kill.'
+    };
+    roleDesc.textContent = descriptions[roleInfo.role] || '';
+
+    // Show tasks
+    taskList.innerHTML = roleInfo.tasks.map(t => `
+        <div class="task-item ${t.status === 'completed' ? 'completed' : ''}" data-id="${t.id}">
+            <span class="task-check" onclick="completeTask('${t.id}')">${t.status === 'completed' ? '✓' : ''}</span>
+            <span class="task-name">${t.name}</span>
+            ${t.is_fake ? '<span class="fake-label">(fake)</span>' : ''}
+        </div>
+    `).join('');
+
+    // Show fellow impostors
+    if (roleInfo.fellow_impostors && roleInfo.fellow_impostors.length > 0) {
+        fellowImpostors.style.display = 'block';
+        document.getElementById('impostor-names').textContent = roleInfo.fellow_impostors.map(i => i.name).join(', ');
+    } else {
+        fellowImpostors.style.display = 'none';
+    }
+}
+
+function updateProgress(percentage) {
+    const fills = document.querySelectorAll('.progress-fill');
+    const texts = document.querySelectorAll('.progress-text');
+
+    fills.forEach(fill => fill.style.width = percentage + '%');
+    texts.forEach(text => text.textContent = percentage + '% Tasks Complete');
+}
+
+async function completeTask(taskId) {
+    if (myRole !== 'Crewmate') return;
+
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/complete?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            // Update UI optimistically
+            const taskEl = document.querySelector(`.task-item[data-id="${taskId}"]`);
+            if (taskEl) {
+                taskEl.classList.add('completed');
+                taskEl.querySelector('.task-check').textContent = '✓';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to complete task:', e);
+    }
+}
+
+async function callMeeting() {
+    const btn = document.getElementById('call-meeting-btn');
+    btn.disabled = true;
+
+    try {
+        await fetch(`/api/games/${gameCode}/meeting/start?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+    } catch (e) {
+        showError('Failed to call meeting');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function handleMeetingStart(payload) {
+    document.getElementById('meeting-caller').textContent = `Called by ${payload.called_by}`;
+    updateProgress(payload.task_percentage);
+
+    document.getElementById('alive-list').innerHTML = payload.alive_players.map(p => `
+        <div class="player-item">${p.name}</div>
+    `).join('');
+
+    document.getElementById('dead-list').innerHTML = payload.dead_players.map(p => `
+        <div class="player-item dead">${p.name}</div>
+    `).join('');
+
+    showScreen('meeting-screen');
+
+    // Play siren
+    const siren = document.getElementById('siren-sound');
+    siren.currentTime = 0;
+    siren.play().catch(() => {});
+
+    // Vibrate
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+async function endMeeting() {
+    try {
+        await fetch(`/api/games/${gameCode}/meeting/end?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+    } catch (e) {
+        showError('Failed to end meeting');
+    }
+}
+
+function handleMeetingEnd() {
+    showScreen('game-screen');
+}
+
+async function markDead() {
+    if (!confirm('Are you sure you want to mark yourself as dead?')) return;
+
+    try {
+        await fetch(`/api/players/${playerId}/die?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        document.getElementById('im-dead-btn').disabled = true;
+        document.getElementById('im-dead-btn').textContent = 'YOU ARE DEAD';
+        document.getElementById('call-meeting-btn').disabled = true;
+    } catch (e) {
+        showError('Failed to mark as dead');
+    }
+}
+
+function handleGameEnd(payload) {
+    document.getElementById('winner-text').textContent = payload.winner.toUpperCase() + 'S WIN!';
+
+    document.getElementById('roles-list').innerHTML = payload.roles.map(p => `
+        <div class="role-reveal-item">
+            <span class="player-name">${p.name}</span>
+            <span class="player-role role-${p.role?.toLowerCase().replace(' ', '-')}">${p.role || 'Unknown'}</span>
+        </div>
+    `).join('');
+
+    showScreen('gameover-screen');
+
+    // Vibrate
+    if (navigator.vibrate) navigator.vibrate([500]);
+}
+
+function returnToLobby() {
+    localStorage.removeItem('session_token');
+    localStorage.removeItem('player_id');
+    window.location.href = '/';
+}
+
+async function refreshGame() {
+    try {
+        const response = await fetch(`/api/games/${gameCode}?session_token=${sessionToken}`);
+        const data = await response.json();
+
+        updatePlayers(data.players);
+        settings = data.settings;
+        availableTasks = data.available_tasks || [];
+        updateSettingsUI();
+        updateTasksUI();
+        updateProgress(data.task_percentage);
+    } catch (e) {
+        console.error('Failed to refresh game:', e);
+    }
+}
+
+// Task Management Functions
+function toggleTaskList() {
+    const content = document.getElementById('task-management-content');
+    const icon = document.getElementById('task-toggle-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '-';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '+';
+    }
+}
+
+function updateTasksUI() {
+    const list = document.getElementById('available-tasks-list');
+    if (!list) return;
+
+    list.innerHTML = availableTasks.map(task => `
+        <div class="available-task-item">
+            <span>${task}</span>
+            <button class="btn-remove" onclick="removeTask('${task}')">&times;</button>
+        </div>
+    `).join('');
+}
+
+async function addTask() {
+    const input = document.getElementById('new-task-input');
+    const taskName = input.value.trim();
+    if (!taskName) return;
+
+    try {
+        await fetch(`/api/games/${gameCode}/tasks?session_token=${sessionToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_name: taskName })
+        });
+        input.value = '';
+    } catch (e) {
+        showError('Failed to add task');
+    }
+}
+
+async function removeTask(taskName) {
+    try {
+        await fetch(`/api/games/${gameCode}/tasks/${encodeURIComponent(taskName)}?session_token=${sessionToken}`, {
+            method: 'DELETE'
+        });
+    } catch (e) {
+        showError('Failed to remove task');
+    }
+}
+
+// Rules Modal Functions
+function showRules() {
+    // Update which rules are visible based on settings
+    document.getElementById('rule-jester').style.display = settings.enable_jester ? 'block' : 'none';
+    document.getElementById('rule-lonewolf').style.display = settings.enable_lone_wolf ? 'block' : 'none';
+    document.getElementById('rule-minion').style.display = settings.enable_minion ? 'block' : 'none';
+
+    document.getElementById('rules-modal').style.display = 'flex';
+}
+
+function hideRules() {
+    document.getElementById('rules-modal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('rules-modal');
+    if (e.target === modal) {
+        hideRules();
+    }
+});
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+    document.getElementById(screenId).style.display = 'block';
+}
+
+function showError(msg) {
+    const el = document.getElementById('error-message');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// Initialize
+connectWS();
+refreshGame();
+
+// Keepalive ping
+setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+    }
+}, 30000);
+</script>
+{% endblock %}

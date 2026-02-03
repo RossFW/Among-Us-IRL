@@ -37,25 +37,6 @@
                 </div>
             </div>
 
-            <div class="role-toggles">
-                <label class="toggle">
-                    <input type="checkbox" id="toggle-jester" onchange="toggleRole('jester')">
-                    <span>Jester</span>
-                </label>
-                <label class="toggle">
-                    <input type="checkbox" id="toggle-lonewolf" onchange="toggleRole('lonewolf')">
-                    <span>Lone Wolf</span>
-                </label>
-                <label class="toggle">
-                    <input type="checkbox" id="toggle-minion" onchange="toggleRole('minion')">
-                    <span>Minion</span>
-                </label>
-                <label class="toggle">
-                    <input type="checkbox" id="toggle-sheriff" onchange="toggleRole('sheriff')">
-                    <span>Sheriff</span>
-                </label>
-            </div>
-
             <!-- Advanced Roles Settings -->
             <div class="advanced-roles-settings">
                 <div class="section-header" onclick="toggleAdvancedRoles()">
@@ -66,6 +47,13 @@
                     <!-- Crewmate Variants -->
                     <div class="role-category">
                         <h5 class="category-crew">Crewmate Variants</h5>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-sheriff" onchange="toggleRole('sheriff')">
+                                <span>Sheriff</span>
+                            </label>
+                            <span class="role-desc">Shoot impostors (miss = die)</span>
+                        </div>
                         <div class="role-config-item">
                             <label class="toggle">
                                 <input type="checkbox" id="role-engineer" onchange="toggleAdvancedRole('engineer')">
@@ -134,6 +122,13 @@
                             </label>
                             <span class="role-desc">Move bodies elsewhere</span>
                         </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-venter" onchange="toggleAdvancedRole('venter')">
+                                <span>Venter</span>
+                            </label>
+                            <span class="role-desc">Can go outside/through vents</span>
+                        </div>
                     </div>
 
                     <!-- Neutral Roles -->
@@ -141,10 +136,24 @@
                         <h5 class="category-neutral">Neutral Roles</h5>
                         <div class="role-config-item">
                             <label class="toggle">
+                                <input type="checkbox" id="toggle-jester" onchange="toggleRole('jester')">
+                                <span>Jester</span>
+                            </label>
+                            <span class="role-desc">Get voted out to win</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-lonewolf" onchange="toggleRole('lonewolf')">
+                                <span>Lone Wolf</span>
+                            </label>
+                            <span class="role-desc">Kill everyone to win</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
                                 <input type="checkbox" id="role-vulture" onchange="toggleAdvancedRole('vulture')">
                                 <span>Vulture</span>
                             </label>
-                            <span class="role-desc">Eat 2 bodies to win</span>
+                            <span class="role-desc">Eat 3 bodies to win</span>
                         </div>
                         <div class="role-config-item">
                             <label class="toggle">
@@ -152,6 +161,18 @@
                                 <span>Noise Maker</span>
                             </label>
                             <span class="role-desc">Choose who finds you</span>
+                        </div>
+                    </div>
+
+                    <!-- Special Roles -->
+                    <div class="role-category">
+                        <h5 class="category-special">Special Roles</h5>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-minion" onchange="toggleRole('minion')">
+                                <span>Minion</span>
+                            </label>
+                            <span class="role-desc">Wins with impostors (blind)</span>
                         </div>
                     </div>
                 </div>
@@ -1053,10 +1074,7 @@ function updatePlayers(players) {
 function updateSettingsUI() {
     document.getElementById('setting-tasks').textContent = settings.tasks_per_player;
     document.getElementById('setting-impostors').textContent = settings.num_impostors;
-    document.getElementById('toggle-jester').checked = settings.enable_jester;
-    document.getElementById('toggle-lonewolf').checked = settings.enable_lone_wolf;
-    document.getElementById('toggle-minion').checked = settings.enable_minion;
-    document.getElementById('toggle-sheriff').checked = settings.enable_sheriff;
+    // Legacy roles now updated in updateAdvancedRolesUI
     // Per-character cooldowns
     document.getElementById('setting-impostor-cooldown').textContent = settings.impostor_kill_cooldown || settings.kill_cooldown;
     document.getElementById('setting-sheriff-cooldown').textContent = settings.sheriff_shoot_cooldown || settings.kill_cooldown;
@@ -1234,7 +1252,7 @@ async function toggleAdvancedRole(roleKey) {
 function updateAdvancedRolesUI() {
     const roleConfigs = settings.role_configs || {};
     const advancedRoles = ['engineer', 'captain', 'mayor', 'nice_guesser', 'spy', 'swapper',
-                          'evil_guesser', 'bounty_hunter', 'cleaner', 'vulture', 'noise_maker'];
+                          'evil_guesser', 'bounty_hunter', 'cleaner', 'venter', 'vulture', 'noise_maker'];
 
     for (const roleKey of advancedRoles) {
         const checkbox = document.getElementById(`role-${roleKey}`);
@@ -1243,6 +1261,12 @@ function updateAdvancedRolesUI() {
             checkbox.checked = config.enabled;
         }
     }
+
+    // Update legacy roles that are now in advanced section
+    document.getElementById('toggle-jester').checked = settings.enable_jester;
+    document.getElementById('toggle-lonewolf').checked = settings.enable_lone_wolf;
+    document.getElementById('toggle-minion').checked = settings.enable_minion;
+    document.getElementById('toggle-sheriff').checked = settings.enable_sheriff;
 }
 
 async function toggleSabotageSetting() {
@@ -1524,8 +1548,14 @@ function handleSabotageResolved(payload) {
         playSound('sound-reactor-fixed');
     }
 
-    // Set cooldown
+    // Set cooldown and start timer for impostor UI
     sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
+
+    // Start the cooldown timer to update UI (for impostor-aligned roles)
+    const impostorRoles = ['Impostor', 'Evil Guesser', 'Bounty Hunter', 'Cleaner', 'Venter'];
+    if (impostorRoles.includes(myRole)) {
+        startSabotageCooldownTimer();
+    }
 
     // Update impostor UI
     updateImpostorSabotageButtons();
@@ -2456,7 +2486,7 @@ function updateCooldownDisplay() {
     } else {
         // Still on cooldown
         const seconds = Math.ceil(remaining / 1000);
-        cooldownText.textContent = `Cooldown: ${seconds}s`;
+        cooldownText.textContent = `Kill Cooldown: ${seconds}s`;
         cooldownText.classList.remove('ready');
     }
 }

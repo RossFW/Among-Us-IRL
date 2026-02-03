@@ -50,7 +50,7 @@ def assign_roles(game: GameModel) -> bool:
 
     # === PHASE 1: Assign Impostors (may be variants) ===
     impostor_variants = []
-    for key in ["evil_guesser", "bounty_hunter", "cleaner"]:
+    for key in ["evil_guesser", "bounty_hunter", "cleaner", "venter"]:
         config = settings.role_configs.get(key, RoleConfig())
         if config.enabled and roll_probability(config.probability):
             impostor_variants.extend([key] * config.max_count)
@@ -69,6 +69,7 @@ def assign_roles(game: GameModel) -> bool:
         "evil_guesser": Role.EVIL_GUESSER,
         "bounty_hunter": Role.BOUNTY_HUNTER,
         "cleaner": Role.CLEANER,
+        "venter": Role.VENTER,
     }
     for variant in impostor_variants:
         players[role_index].role = role_map[variant]
@@ -271,7 +272,7 @@ def check_win_conditions(game: GameModel) -> Optional[str]:
     lone_wolf_alive = any(p.role == Role.LONE_WOLF for p in alive)
 
     # Vulture win check - if any vulture has eaten enough bodies
-    vulture_win_threshold = 2  # Number of bodies needed to win
+    vulture_win_threshold = 3  # Number of bodies needed to win
     for player in game.players.values():
         if player.role == Role.VULTURE and player.vulture_bodies_eaten >= vulture_win_threshold:
             return "Vulture"

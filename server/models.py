@@ -46,6 +46,7 @@ class Role(str, Enum):
     EVIL_GUESSER = "Evil Guesser"  # Same as Nice Guesser but for impostors
     BOUNTY_HUNTER = "Bounty Hunter"  # Shorter cooldown for target, longer for others
     CLEANER = "Cleaner"        # Can "clean" bodies (drag them elsewhere)
+    VENTER = "Venter"          # Can go outside/through vents (access doors)
 
     # New Neutral roles
     VULTURE = "Vulture"        # "Eat" X corpses to win
@@ -66,6 +67,7 @@ ROLE_CATEGORIES = {
     Role.EVIL_GUESSER: RoleCategory.IMPOSTOR,
     Role.BOUNTY_HUNTER: RoleCategory.IMPOSTOR,
     Role.CLEANER: RoleCategory.IMPOSTOR,
+    Role.VENTER: RoleCategory.IMPOSTOR,
     Role.MINION: RoleCategory.IMPOSTOR,  # Wins with impostors
     Role.JESTER: RoleCategory.NEUTRAL,
     Role.LONE_WOLF: RoleCategory.NEUTRAL,
@@ -177,6 +179,7 @@ class GameSettings(BaseModel):
         "evil_guesser": RoleConfig(),
         "bounty_hunter": RoleConfig(),
         "cleaner": RoleConfig(),
+        "venter": RoleConfig(),
         # Neutral roles
         "vulture": RoleConfig(),
         "noise_maker": RoleConfig(),
@@ -197,7 +200,7 @@ class GameSettings(BaseModel):
     meeting_cooldown: int = 30  # Seconds between meetings
     # Sabotage settings
     enable_sabotage: bool = False
-    sabotage_cooldown: int = 90  # Global cooldown between sabotages
+    sabotage_cooldown: int = 10  # Global cooldown between sabotages
     # Sabotage 1: Lights
     sabotage_1_enabled: bool = True
     sabotage_1_name: str = "Lights"
@@ -493,6 +496,13 @@ ROLE_DESCRIPTIONS = {
         "short": "Clean up bodies",
         "description": "Can 'clean' bodies by moving them elsewhere. Tell the dead player to act alive until the next meeting.",
         "color": "#991b1b"
+    },
+    "venter": {
+        "name": "Venter",
+        "category": "impostor",
+        "short": "Can go outside/through vents",
+        "description": "Can access doors and walk outside the building. Use vents to move around unseen.",
+        "color": "#7c2d12"
     },
     # New Neutral roles
     "vulture": {

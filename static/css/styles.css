@@ -1583,6 +1583,10 @@ body {
     color: var(--jester);
 }
 
+.role-category h5.category-special {
+    color: var(--minion);
+}
+
 .role-config-item {
     display: flex;
     justify-content: space-between;

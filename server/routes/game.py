@@ -1159,7 +1159,7 @@ async def vulture_eat_endpoint(code: str, session_token: str, body_player_id: st
 
     # Eat the body
     player.vulture_bodies_eaten += 1
-    bodies_needed = 2
+    bodies_needed = 3
 
     # Notify the dead player they were eaten (private message)
     await ws_manager.send_to_player(game.code, body.id, {

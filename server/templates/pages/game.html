@@ -56,6 +56,107 @@
                 </label>
             </div>
 
+            <!-- Advanced Roles Settings -->
+            <div class="advanced-roles-settings">
+                <div class="section-header" onclick="toggleAdvancedRoles()">
+                    <h4>Advanced Roles</h4>
+                    <span id="advanced-roles-toggle-icon">+</span>
+                </div>
+                <div id="advanced-roles-content" style="display: none;">
+                    <!-- Crewmate Variants -->
+                    <div class="role-category">
+                        <h5 class="category-crew">Crewmate Variants</h5>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-engineer" onchange="toggleAdvancedRole('engineer')">
+                                <span>Engineer</span>
+                            </label>
+                            <span class="role-desc">Fix one sabotage remotely</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-captain" onchange="toggleAdvancedRole('captain')">
+                                <span>Captain</span>
+                            </label>
+                            <span class="role-desc">Extra emergency meeting</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-mayor" onchange="toggleAdvancedRole('mayor')">
+                                <span>Mayor</span>
+                            </label>
+                            <span class="role-desc">Vote counts twice</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-nice_guesser" onchange="toggleAdvancedRole('nice_guesser')">
+                                <span>Nice Guesser</span>
+                            </label>
+                            <span class="role-desc">Guess roles (risky!)</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-spy" onchange="toggleAdvancedRole('spy')">
+                                <span>Spy</span>
+                            </label>
+                            <span class="role-desc">Appears as impostor</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-swapper" onchange="toggleAdvancedRole('swapper')">
+                                <span>Swapper</span>
+                            </label>
+                            <span class="role-desc">Swap votes between players</span>
+                        </div>
+                    </div>
+
+                    <!-- Impostor Variants -->
+                    <div class="role-category">
+                        <h5 class="category-impostor">Impostor Variants</h5>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-evil_guesser" onchange="toggleAdvancedRole('evil_guesser')">
+                                <span>Evil Guesser</span>
+                            </label>
+                            <span class="role-desc">Guess roles (risky!)</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-bounty_hunter" onchange="toggleAdvancedRole('bounty_hunter')">
+                                <span>Bounty Hunter</span>
+                            </label>
+                            <span class="role-desc">Faster kills on target</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-cleaner" onchange="toggleAdvancedRole('cleaner')">
+                                <span>Cleaner</span>
+                            </label>
+                            <span class="role-desc">Move bodies elsewhere</span>
+                        </div>
+                    </div>
+
+                    <!-- Neutral Roles -->
+                    <div class="role-category">
+                        <h5 class="category-neutral">Neutral Roles</h5>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-vulture" onchange="toggleAdvancedRole('vulture')">
+                                <span>Vulture</span>
+                            </label>
+                            <span class="role-desc">Eat 2 bodies to win</span>
+                        </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-noise_maker" onchange="toggleAdvancedRole('noise_maker')">
+                                <span>Noise Maker</span>
+                            </label>
+                            <span class="role-desc">Choose who finds you</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Per-Character Cooldown Settings -->
             <div id="cooldown-settings" class="cooldown-settings" style="display: none;">
                 <!-- Impostor Cooldown -->
@@ -556,7 +657,7 @@ let gameState = 'lobby';
 let isHost = false;
 let myRole = null;
 let hasUsedMeeting = false;  // Track if player used their one emergency meeting
-let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false, enable_sheriff: false, kill_cooldown: 45, impostor_kill_cooldown: 45, sheriff_shoot_cooldown: 45, lone_wolf_kill_cooldown: 45, enable_sabotage: false, sabotage_cooldown: 90, meeting_cooldown: 30, enable_voting: true, anonymous_voting: false, meeting_timer_duration: 120, meeting_warning_time: 30, discussion_time: 5 };
+let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false, enable_sheriff: false, kill_cooldown: 45, impostor_kill_cooldown: 45, sheriff_shoot_cooldown: 45, lone_wolf_kill_cooldown: 45, enable_sabotage: false, sabotage_cooldown: 90, meeting_cooldown: 30, enable_voting: true, anonymous_voting: false, meeting_timer_duration: 120, meeting_warning_time: 30, discussion_time: 5, role_configs: {} };
 let killCooldownTimer = null;
 let cooldownEndTime = null;
 let availableTasks = [];
@@ -963,6 +1064,7 @@ function updateSettingsUI() {
     updateCooldownSettingsVisibility();
     updateSabotageSettingsUI();
     updateMeetingSettingsUI();
+    updateAdvancedRolesUI();
 }
 
 function updateCooldownSettingsVisibility() {
@@ -1099,6 +1201,47 @@ function toggleSabotageSettings() {
     } else {
         content.style.display = 'none';
         icon.textContent = '+';
+    }
+}
+
+function toggleAdvancedRoles() {
+    const content = document.getElementById('advanced-roles-content');
+    const icon = document.getElementById('advanced-roles-toggle-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '-';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '+';
+    }
+}
+
+async function toggleAdvancedRole(roleKey) {
+    const checkbox = document.getElementById(`role-${roleKey}`);
+    const enabled = checkbox.checked;
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            role_configs: {
+                [roleKey]: { enabled: enabled }
+            }
+        })
+    });
+}
+
+function updateAdvancedRolesUI() {
+    const roleConfigs = settings.role_configs || {};
+    const advancedRoles = ['engineer', 'captain', 'mayor', 'nice_guesser', 'spy', 'swapper',
+                          'evil_guesser', 'bounty_hunter', 'cleaner', 'vulture', 'noise_maker'];
+
+    for (const roleKey of advancedRoles) {
+        const checkbox = document.getElementById(`role-${roleKey}`);
+        if (checkbox) {
+            const config = roleConfigs[roleKey] || { enabled: false };
+            checkbox.checked = config.enabled;
+        }
     }
 }
 

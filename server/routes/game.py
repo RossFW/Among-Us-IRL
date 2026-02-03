@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 from ..database import game_store
-from ..models import GameState, PlayerStatus, Role, ActiveSabotage, MeetingState, Vote, VoteType
+from ..models import GameState, PlayerStatus, Role, ActiveSabotage, MeetingState, Vote, VoteType, ROLE_CATEGORIES, RoleCategory
 import time
 from ..services.ws_manager import ws_manager
 from ..services.game_logic import (
@@ -410,6 +410,11 @@ async def end_meeting_endpoint(code: str, session_token: str):
     if game.state != GameState.MEETING:
         raise HTTPException(status_code=400, detail="No meeting in progress")
 
+    # Reset guesser state for next meeting
+    for player in game.players.values():
+        if player.role in [Role.NICE_GUESSER, Role.EVIL_GUESSER]:
+            player.guesser_used_this_meeting = False
+
     # Clear active meeting state
     game.active_meeting = None
     game.state = GameState.PLAYING
@@ -539,18 +544,38 @@ async def reveal_vote_results(game):
 
     game.active_meeting.voting_ended = True
 
-    # Count votes
+    # Check for Swapper - apply vote swaps
+    swapper_targets = None
+    for p in game.players.values():
+        if p.role == Role.SWAPPER and p.swapper_targets and p.status == PlayerStatus.ALIVE:
+            swapper_targets = p.swapper_targets
+            # Reset for next meeting
+            p.swapper_targets = None
+            break
+
+    # Count votes with special role handling
     vote_counts = {}  # player_id -> count
     skip_count = 0
 
     for vote in game.active_meeting.votes.values():
-        # TODO: Handle Mayor (2x vote) when implemented
-        weight = 1
+        voter = game.players.get(vote.voter_id)
+        # Mayor's vote counts twice
+        weight = 2 if voter and voter.role == Role.MAYOR else 1
 
-        if vote.vote_type == VoteType.SKIP or not vote.target_id:
+        target_id = vote.target_id
+
+        # Apply Swapper's swap
+        if swapper_targets and target_id:
+            p1, p2 = swapper_targets
+            if target_id == p1:
+                target_id = p2
+            elif target_id == p2:
+                target_id = p1
+
+        if vote.vote_type == VoteType.SKIP or not target_id:
             skip_count += weight
         else:
-            vote_counts[vote.target_id] = vote_counts.get(vote.target_id, 0) + weight
+            vote_counts[target_id] = vote_counts.get(target_id, 0) + weight
 
     # Find max votes
     all_counts = [skip_count] + list(vote_counts.values())
@@ -925,4 +950,281 @@ async def get_sabotage_status_endpoint(code: str, session_token: str):
         "remaining": int(remaining),
         "reactor_holders": len(sab.reactor_holders) if sab.type == "reactor" else 0,
         "o2_switches": sab.o2_switches if sab.type == "o2" else 0
+    }
+
+
+# ==================== ROLE ABILITY ENDPOINTS ====================
+
+@router.post("/games/{code}/ability/engineer-fix")
+async def engineer_fix_endpoint(code: str, session_token: str):
+    """Engineer: Fix active sabotage remotely (one use per game)."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.ENGINEER:
+        raise HTTPException(status_code=403, detail="Not an Engineer")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if player.engineer_fix_used:
+        raise HTTPException(status_code=400, detail="Already used remote fix this game")
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Cannot use ability now")
+
+    if game.active_sabotage is None:
+        raise HTTPException(status_code=400, detail="No active sabotage to fix")
+
+    # Mark ability as used
+    player.engineer_fix_used = True
+
+    # Fix the sabotage
+    sabotage_name = game.active_sabotage.name
+    game.active_sabotage = None
+
+    # Broadcast sabotage resolved
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "sabotage_resolved",
+        "payload": {
+            "resolver": player.name,
+            "sabotage_name": sabotage_name,
+            "method": "Engineer remote fix"
+        }
+    })
+
+    return {"success": True, "message": f"Fixed {sabotage_name} remotely!"}
+
+
+@router.post("/games/{code}/ability/captain-meeting")
+async def captain_meeting_endpoint(code: str, session_token: str):
+    """Captain: Call extra emergency meeting (one additional use per game)."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.CAPTAIN:
+        raise HTTPException(status_code=403, detail="Not a Captain")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if player.captain_meeting_used:
+        raise HTTPException(status_code=400, detail="Already used extra meeting this game")
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Cannot call meeting now")
+
+    if game.active_sabotage is not None:
+        raise HTTPException(status_code=400, detail="Cannot call meeting during sabotage")
+
+    # Mark ability as used
+    player.captain_meeting_used = True
+
+    # Create meeting state
+    game.active_meeting = MeetingState(
+        started_at=time.time(),
+        started_by=player.id,
+        started_by_name=player.name,
+        meeting_type="meeting",
+        phase="gathering"
+    )
+    game.state = GameState.MEETING
+
+    # Broadcast meeting
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "meeting_called",
+        "payload": {
+            "caller_id": player.id,
+            "called_by": player.name,
+            "meeting_type": "meeting",
+            "reason": "Captain's extra meeting"
+        }
+    })
+
+    return {"success": True}
+
+
+@router.post("/games/{code}/ability/guesser-guess")
+async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, guessed_role: str):
+    """Guesser: Guess a player's role during meeting. Wrong = you die."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role not in [Role.NICE_GUESSER, Role.EVIL_GUESSER]:
+        raise HTTPException(status_code=403, detail="Not a Guesser")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if game.state != GameState.MEETING:
+        raise HTTPException(status_code=400, detail="Can only guess during meetings")
+
+    if player.guesser_used_this_meeting:
+        raise HTTPException(status_code=400, detail="Already guessed this meeting")
+
+    target = game.players.get(target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    if target.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="Target is already dead")
+
+    # Mark ability as used this meeting
+    player.guesser_used_this_meeting = True
+
+    # Check if guess is correct
+    try:
+        guessed = Role(guessed_role)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    if target.role == guessed:
+        # Correct! Target dies
+        target.status = PlayerStatus.DEAD
+        dead_player = target
+        guesser_survived = True
+        message = f"{player.name} correctly guessed {target.name}'s role!"
+    else:
+        # Wrong! Guesser dies
+        player.status = PlayerStatus.DEAD
+        dead_player = player
+        guesser_survived = False
+        message = f"{player.name} guessed wrong and died!"
+
+    # Broadcast result
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "guesser_result",
+        "payload": {
+            "guesser_name": player.name,
+            "guesser_id": player.id,
+            "target_name": target.name,
+            "target_id": target.id,
+            "guessed_role": guessed_role,
+            "correct": guesser_survived,
+            "dead_player_id": dead_player.id,
+            "dead_player_name": dead_player.name,
+            "message": message
+        }
+    })
+
+    # Check win conditions
+    winner = check_win_conditions(game)
+    if winner:
+        game.state = GameState.ENDED
+        game.winner = winner
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "game_ended",
+            "payload": {
+                "winner": winner,
+                "roles": get_all_roles(game)
+            }
+        })
+
+    return {"success": True, "correct": guesser_survived, "message": message}
+
+
+@router.post("/games/{code}/ability/vulture-eat")
+async def vulture_eat_endpoint(code: str, session_token: str, body_player_id: str):
+    """Vulture: Eat a dead body to work toward win condition."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.VULTURE:
+        raise HTTPException(status_code=403, detail="Not a Vulture")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Cannot eat bodies now")
+
+    body = game.players.get(body_player_id)
+    if not body:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    if body.status != PlayerStatus.DEAD:
+        raise HTTPException(status_code=400, detail="Player is not dead")
+
+    # Eat the body
+    player.vulture_bodies_eaten += 1
+    bodies_needed = 2
+
+    # Notify the dead player they were eaten (private message)
+    await ws_manager.send_to_player(game.code, body.id, {
+        "type": "body_eaten",
+        "payload": {
+            "message": "A Vulture ate your body! Act alive until the next meeting."
+        }
+    })
+
+    # Check vulture win condition
+    if player.vulture_bodies_eaten >= bodies_needed:
+        game.state = GameState.ENDED
+        game.winner = "Vulture"
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "game_ended",
+            "payload": {
+                "winner": "Vulture",
+                "reason": f"{player.name} ate enough bodies!",
+                "roles": get_all_roles(game)
+            }
+        })
+        return {"success": True, "vulture_wins": True}
+
+    return {
+        "success": True,
+        "bodies_eaten": player.vulture_bodies_eaten,
+        "bodies_needed": bodies_needed
+    }
+
+
+@router.post("/games/{code}/ability/swapper-swap")
+async def swapper_swap_endpoint(code: str, session_token: str, player1_id: str, player2_id: str):
+    """Swapper: Select two players to swap all votes between them."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.SWAPPER:
+        raise HTTPException(status_code=403, detail="Not a Swapper")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if game.state != GameState.MEETING:
+        raise HTTPException(status_code=400, detail="Can only swap during meetings")
+
+    if game.active_meeting.phase != "voting":
+        raise HTTPException(status_code=400, detail="Can only swap during voting phase")
+
+    player1 = game.players.get(player1_id)
+    player2 = game.players.get(player2_id)
+
+    if not player1 or not player2:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    if player1.status != PlayerStatus.ALIVE or player2.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="Can only swap votes for alive players")
+
+    # Store swap targets - will be applied when votes are tallied
+    player.swapper_targets = (player1_id, player2_id)
+
+    return {
+        "success": True,
+        "swapped": [player1.name, player2.name],
+        "message": f"Votes for {player1.name} and {player2.name} will be swapped!"
     }

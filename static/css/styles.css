@@ -1533,6 +1533,74 @@ body {
     font-size: 12px;
 }
 
+/* ==================== ADVANCED ROLES STYLES ==================== */
+
+.advanced-roles-settings {
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.advanced-roles-settings .section-header {
+    padding: 0;
+    margin-bottom: 12px;
+}
+
+.advanced-roles-settings h4 {
+    color: var(--accent);
+}
+
+.role-category {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.role-category:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.role-category h5 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.role-category h5.category-crew {
+    color: var(--crewmate);
+}
+
+.role-category h5.category-impostor {
+    color: var(--impostor);
+}
+
+.role-category h5.category-neutral {
+    color: var(--jester);
+}
+
+.role-config-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+}
+
+.role-config-item .toggle {
+    flex: 1;
+}
+
+.role-desc {
+    color: var(--text-secondary);
+    font-size: 11px;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
 /* Meeting & Voting Settings */
 .meeting-voting-settings {
     background: var(--bg-card);

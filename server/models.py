@@ -16,13 +16,62 @@ class GameState(str, Enum):
     ENDED = "ended"
 
 
+class RoleCategory(str, Enum):
+    """Category for win condition grouping."""
+    CREW = "crew"
+    IMPOSTOR = "impostor"
+    NEUTRAL = "neutral"
+
+
 class Role(str, Enum):
+    # Base roles
     CREWMATE = "Crewmate"
     IMPOSTOR = "Impostor"
+
+    # Existing special roles
     JESTER = "Jester"
     LONE_WOLF = "Lone Wolf"
     MINION = "Minion"
     SHERIFF = "Sheriff"
+
+    # New Crewmate variants
+    ENGINEER = "Engineer"      # Fix ONE sabotage remotely per game
+    CAPTAIN = "Captain"        # Extra remote meeting button (additional to normal)
+    MAYOR = "Mayor"            # Vote counts twice
+    NICE_GUESSER = "Nice Guesser"  # Quick-guess a player's role during voting
+    SPY = "Spy"                # Appears as impostor to impostors
+    SWAPPER = "Swapper"        # Swap votes between two players
+
+    # New Impostor variants
+    EVIL_GUESSER = "Evil Guesser"  # Same as Nice Guesser but for impostors
+    BOUNTY_HUNTER = "Bounty Hunter"  # Shorter cooldown for target, longer for others
+    CLEANER = "Cleaner"        # Can "clean" bodies (drag them elsewhere)
+
+    # New Neutral roles
+    VULTURE = "Vulture"        # "Eat" X corpses to win
+    NOISE_MAKER = "Noise Maker"  # When killed, select who "found" them
+
+
+# Map roles to their category for win conditions
+ROLE_CATEGORIES = {
+    Role.CREWMATE: RoleCategory.CREW,
+    Role.SHERIFF: RoleCategory.CREW,
+    Role.ENGINEER: RoleCategory.CREW,
+    Role.CAPTAIN: RoleCategory.CREW,
+    Role.MAYOR: RoleCategory.CREW,
+    Role.NICE_GUESSER: RoleCategory.CREW,
+    Role.SPY: RoleCategory.CREW,
+    Role.SWAPPER: RoleCategory.CREW,
+    Role.IMPOSTOR: RoleCategory.IMPOSTOR,
+    Role.EVIL_GUESSER: RoleCategory.IMPOSTOR,
+    Role.BOUNTY_HUNTER: RoleCategory.IMPOSTOR,
+    Role.CLEANER: RoleCategory.IMPOSTOR,
+    Role.MINION: RoleCategory.IMPOSTOR,  # Wins with impostors
+    Role.JESTER: RoleCategory.NEUTRAL,
+    Role.LONE_WOLF: RoleCategory.NEUTRAL,
+    Role.VULTURE: RoleCategory.NEUTRAL,
+    Role.NOISE_MAKER: RoleCategory.NEUTRAL,
+}
 
 
 class TaskStatus(str, Enum):
@@ -90,14 +139,48 @@ class PlayerModel(BaseModel):
     is_host: bool = False
     connected: bool = True
 
+    # Role-specific state fields
+    engineer_fix_used: bool = False           # Engineer: has used remote fix
+    captain_meeting_used: bool = False        # Captain: has used extra meeting
+    guesser_used_this_meeting: bool = False   # Guesser: has guessed this meeting
+    swapper_targets: Optional[tuple[str, str]] = None  # Swapper: two player IDs to swap votes
+    vulture_bodies_eaten: int = 0             # Vulture: corpses consumed
+    bounty_target_id: Optional[str] = None    # Bounty Hunter: current target player ID
+    noise_maker_target_id: Optional[str] = None  # Noise Maker: who will "find" them
+
+
+class RoleConfig(BaseModel):
+    """Configuration for probability-based role selection."""
+    enabled: bool = False
+    probability: int = 100  # 0-100% chance when enabled
+    max_count: int = 1      # Maximum players with this role
+
 
 class GameSettings(BaseModel):
     tasks_per_player: int = 5
     num_impostors: int = 2
+    # Legacy role toggles (kept for backwards compatibility)
     enable_jester: bool = False
     enable_lone_wolf: bool = False
     enable_minion: bool = False
     enable_sheriff: bool = False
+    # New probability-based role configs
+    role_configs: dict[str, RoleConfig] = Field(default_factory=lambda: {
+        # Crewmate variants
+        "engineer": RoleConfig(),
+        "captain": RoleConfig(),
+        "mayor": RoleConfig(),
+        "nice_guesser": RoleConfig(),
+        "spy": RoleConfig(),
+        "swapper": RoleConfig(),
+        # Impostor variants
+        "evil_guesser": RoleConfig(),
+        "bounty_hunter": RoleConfig(),
+        "cleaner": RoleConfig(),
+        # Neutral roles
+        "vulture": RoleConfig(),
+        "noise_maker": RoleConfig(),
+    })
     # Per-character cooldown settings (in seconds)
     kill_cooldown: int = 45  # Legacy, kept for backwards compat
     impostor_kill_cooldown: int = 45
@@ -201,12 +284,12 @@ class GameModel(BaseModel):
     active_meeting: Optional[MeetingState] = None
 
     def get_task_completion_percentage(self) -> float:
-        """Calculate task completion percentage (Crewmates + Sheriff)."""
+        """Calculate task completion percentage (all crew-aligned roles)."""
         if self.crewmate_task_total == 0:
             return 0.0
         completed = sum(
             1 for p in self.players.values()
-            if p.role in [Role.CREWMATE, Role.SHERIFF]
+            if p.role and ROLE_CATEGORIES.get(p.role) == RoleCategory.CREW
             for t in p.tasks
             if t.status == TaskStatus.COMPLETED
         )
@@ -276,6 +359,8 @@ class UpdateSettingsRequest(BaseModel):
     enable_voting: Optional[bool] = None
     anonymous_voting: Optional[bool] = None
     discussion_time: Optional[int] = None
+    # Role configs
+    role_configs: Optional[dict[str, dict]] = None  # {"engineer": {"enabled": true, "probability": 100}}
 
 
 class AddTaskRequest(BaseModel):
@@ -296,3 +381,132 @@ class PlayerResponse(BaseModel):
     name: str
     session_token: str
     is_host: bool
+
+
+# Role descriptions for UI
+ROLE_DESCRIPTIONS = {
+    # Base roles
+    "crewmate": {
+        "name": "Crewmate",
+        "category": "crew",
+        "short": "Complete tasks and find impostors",
+        "description": "Standard crew member. Complete tasks and vote out impostors to win.",
+        "color": "#4ade80"
+    },
+    "impostor": {
+        "name": "Impostor",
+        "category": "impostor",
+        "short": "Kill crewmates and avoid detection",
+        "description": "Eliminate crewmates without getting caught. Sabotage to create chaos.",
+        "color": "#ef4444"
+    },
+    # Existing special roles
+    "jester": {
+        "name": "Jester",
+        "category": "neutral",
+        "short": "Get voted out to win",
+        "description": "Win by getting voted out during a meeting. Act suspicious!",
+        "color": "#a855f7"
+    },
+    "lone_wolf": {
+        "name": "Lone Wolf",
+        "category": "neutral",
+        "short": "Be the last one standing",
+        "description": "Kill everyone - crew AND impostors. You win alone.",
+        "color": "#f97316"
+    },
+    "minion": {
+        "name": "Minion",
+        "category": "crew",  # Appears as crew but wins with impostors
+        "short": "Help impostors win (you don't know who they are)",
+        "description": "You win with impostors but don't know who they are. Act like crew.",
+        "color": "#eab308"
+    },
+    "sheriff": {
+        "name": "Sheriff",
+        "category": "crew",
+        "short": "Shoot impostors (but die if you miss)",
+        "description": "Can shoot players. Hit impostor = they die. Hit crew = YOU die.",
+        "color": "#3b82f6"
+    },
+    # New Crewmate variants
+    "engineer": {
+        "name": "Engineer",
+        "category": "crew",
+        "short": "Fix one sabotage remotely",
+        "description": "Once per game, fix any active sabotage from anywhere without going to the location.",
+        "color": "#22c55e"
+    },
+    "captain": {
+        "name": "Captain",
+        "category": "crew",
+        "short": "Call an extra emergency meeting",
+        "description": "Has one additional emergency meeting button use beyond the normal limit.",
+        "color": "#0ea5e9"
+    },
+    "mayor": {
+        "name": "Mayor",
+        "category": "crew",
+        "short": "Your vote counts twice",
+        "description": "During voting, your vote is worth 2 votes instead of 1.",
+        "color": "#8b5cf6"
+    },
+    "nice_guesser": {
+        "name": "Nice Guesser",
+        "category": "crew",
+        "short": "Guess roles during voting",
+        "description": "Once per meeting, guess a player's role. Correct = they die. Wrong = YOU die.",
+        "color": "#14b8a6"
+    },
+    "spy": {
+        "name": "Spy",
+        "category": "crew",
+        "short": "Appear as impostor to impostors",
+        "description": "Impostors see you as one of them, but you're actually crew. Use this to infiltrate.",
+        "color": "#6366f1"
+    },
+    "swapper": {
+        "name": "Swapper",
+        "category": "crew",
+        "short": "Swap votes between two players",
+        "description": "During voting, select two players to swap all votes between them. Can't call meetings or fix lights.",
+        "color": "#ec4899"
+    },
+    # New Impostor variants
+    "evil_guesser": {
+        "name": "Evil Guesser",
+        "category": "impostor",
+        "short": "Guess roles during voting",
+        "description": "Once per meeting, guess a player's role. Correct = they die. Wrong = YOU die.",
+        "color": "#dc2626"
+    },
+    "bounty_hunter": {
+        "name": "Bounty Hunter",
+        "category": "impostor",
+        "short": "Faster kills on your target",
+        "description": "You have a bounty target. Kill them faster, but others take longer. Target changes when killed.",
+        "color": "#b91c1c"
+    },
+    "cleaner": {
+        "name": "Cleaner",
+        "category": "impostor",
+        "short": "Clean up bodies",
+        "description": "Can 'clean' bodies by moving them elsewhere. Tell the dead player to act alive until the next meeting.",
+        "color": "#991b1b"
+    },
+    # New Neutral roles
+    "vulture": {
+        "name": "Vulture",
+        "category": "neutral",
+        "short": "Eat corpses to win",
+        "description": "Find and 'eat' dead bodies. Eat enough corpses before game ends to win. Tell dead player they're eaten.",
+        "color": "#84cc16"
+    },
+    "noise_maker": {
+        "name": "Noise Maker",
+        "category": "neutral",
+        "short": "Choose who finds your body",
+        "description": "When you die, select another player. They get a fake 'body found' notification from your location.",
+        "color": "#f59e0b"
+    },
+}

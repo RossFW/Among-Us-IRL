@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from ..database import game_store
 from ..models import (
     CreateGameRequest, JoinGameRequest, UpdateSettingsRequest,
-    AddTaskRequest, GameState
+    AddTaskRequest, GameState, RoleConfig
 )
 from ..services.ws_manager import ws_manager
 
@@ -190,6 +190,18 @@ async def update_settings(code: str, request: UpdateSettingsRequest, session_tok
         game.settings.anonymous_voting = request.anonymous_voting
     if request.discussion_time is not None:
         game.settings.discussion_time = max(0, request.discussion_time)
+
+    # Role configs (probability-based roles)
+    if request.role_configs is not None:
+        for role_key, config_data in request.role_configs.items():
+            if role_key in game.settings.role_configs:
+                current_config = game.settings.role_configs[role_key]
+                if "enabled" in config_data:
+                    current_config.enabled = config_data["enabled"]
+                if "probability" in config_data:
+                    current_config.probability = max(0, min(100, config_data["probability"]))
+                if "max_count" in config_data:
+                    current_config.max_count = max(1, min(5, config_data["max_count"]))
 
     # Notify players
     await ws_manager.broadcast_to_game(game.code, {

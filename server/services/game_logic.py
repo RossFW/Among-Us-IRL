@@ -31,6 +31,8 @@ def assign_roles(game: GameModel) -> bool:
         total_special += 1
     if settings.enable_minion:
         total_special += 1
+    if settings.enable_sheriff:
+        total_special += 1
 
     # Validate player count
     if num_players < total_special + 1:
@@ -61,6 +63,11 @@ def assign_roles(game: GameModel) -> bool:
         players[role_index].role = Role.MINION
         role_index += 1
 
+    # Assign Sheriff
+    if settings.enable_sheriff:
+        players[role_index].role = Role.SHERIFF
+        role_index += 1
+
     # Remaining players are Crewmates
     for i in range(role_index, num_players):
         players[role_index].role = Role.CREWMATE
@@ -72,13 +79,13 @@ def assign_roles(game: GameModel) -> bool:
 def distribute_tasks(game: GameModel):
     """
     Distribute tasks to all players.
-    Crewmates get real tasks, others get fake tasks.
+    Crewmates and Sheriffs get real tasks, others get fake tasks.
 
     Ported from main.py lines 220-240.
     """
     available = game.available_tasks.copy()
     tasks_per = game.settings.tasks_per_player
-    crewmate_count = 0
+    task_doer_count = 0  # Crewmates + Sheriffs
 
     for player in game.players.values():
         # Shuffle available tasks
@@ -87,18 +94,18 @@ def distribute_tasks(game: GameModel):
         # Select tasks for this player
         selected_tasks = available[:tasks_per]
 
-        # Create task objects
-        is_fake = player.role != Role.CREWMATE
+        # Create task objects - Crewmates and Sheriffs get real tasks
+        is_fake = player.role not in [Role.CREWMATE, Role.SHERIFF]
         player.tasks = [
             TaskModel(name=task_name, is_fake=is_fake)
             for task_name in selected_tasks
         ]
 
-        if player.role == Role.CREWMATE:
-            crewmate_count += 1
+        if player.role in [Role.CREWMATE, Role.SHERIFF]:
+            task_doer_count += 1
 
-    # Set total task count
-    game.crewmate_task_total = crewmate_count * tasks_per
+    # Set total task count (Crewmates + Sheriffs)
+    game.crewmate_task_total = task_doer_count * tasks_per
 
 
 def start_game(game: GameModel) -> dict:
@@ -120,6 +127,8 @@ def start_game(game: GameModel) -> dict:
     if game.settings.enable_lone_wolf:
         total_special += 1
     if game.settings.enable_minion:
+        total_special += 1
+    if game.settings.enable_sheriff:
         total_special += 1
 
     adjustments = []
@@ -165,27 +174,46 @@ def check_win_conditions(game: GameModel) -> Optional[str]:
     # Count alive players by role
     num_impostors = sum(1 for p in alive if p.role == Role.IMPOSTOR)
     num_crewmates = sum(1 for p in alive if p.role == Role.CREWMATE)
+    num_sheriffs = sum(1 for p in alive if p.role == Role.SHERIFF)
     num_jesters = sum(1 for p in alive if p.role == Role.JESTER)
     num_minions = sum(1 for p in alive if p.role == Role.MINION)
     lone_wolf_alive = any(p.role == Role.LONE_WOLF for p in alive)
 
     impostor_team = num_impostors + num_minions
-    crew_team = num_crewmates + num_jesters
+    # Sheriff counts with crewmates for win conditions
+    crew_team = num_crewmates + num_sheriffs + num_jesters
 
-    # Task completion win (Crewmates)
+    # Task completion win (Crewmates + Sheriff)
     if game.get_task_completion_percentage() >= 100:
+        return "Crewmate"
+
+    # Lone Wolf vs Impostor showdown: only these two roles alive
+    # Last one standing wins
+    if len(alive) == 1:
+        survivor = alive[0]
+        if survivor.role == Role.LONE_WOLF:
+            return "Lone Wolf"
+        if survivor.role == Role.IMPOSTOR:
+            return "Impostor"
+
+    # Lone Wolf vs Impostor: if only these two are left, game continues until one dies
+    if len(alive) == 2 and lone_wolf_alive and num_impostors == 1:
+        # Game continues - they must eliminate each other
+        return None
+
+    # All impostors dead = Crewmate win (unless Lone Wolf in play)
+    if num_impostors == 0 and not lone_wolf_alive:
         return "Crewmate"
 
     # Impostor win: outnumber crewmates, no lone wolf, at least 1 impostor
     if not lone_wolf_alive and impostor_team >= crew_team and num_impostors > 0:
         return "Impostor"
 
-    # Lone Wolf win: last 2 alive, no impostors
+    # Lone Wolf win: last 2 alive, no impostors remaining
     if lone_wolf_alive and len(alive) == 2 and num_impostors == 0:
         return "Lone Wolf"
 
-    # All impostors dead but game continues (crewmates need to finish tasks)
-    # Or game continues normally
+    # Game continues
     return None
 
 
@@ -195,7 +223,8 @@ def complete_task(game: GameModel, player_id: str, task_id: str) -> bool:
     Returns True if successful.
     """
     player = game.players.get(player_id)
-    if not player or player.role != Role.CREWMATE:
+    # Crewmates and Sheriffs can complete real tasks
+    if not player or player.role not in [Role.CREWMATE, Role.SHERIFF]:
         return False
 
     for task in player.tasks:
@@ -204,6 +233,72 @@ def complete_task(game: GameModel, player_id: str, task_id: str) -> bool:
             return True
 
     return False
+
+
+def uncomplete_task(game: GameModel, player_id: str, task_id: str) -> bool:
+    """
+    Mark a task as pending for a player (undo completion).
+    Returns True if successful.
+    """
+    player = game.players.get(player_id)
+    # Crewmates and Sheriffs can uncomplete real tasks
+    if not player or player.role not in [Role.CREWMATE, Role.SHERIFF]:
+        return False
+
+    for task in player.tasks:
+        if task.id == task_id and task.status == TaskStatus.COMPLETED:
+            task.status = TaskStatus.PENDING
+            return True
+
+    return False
+
+
+def sheriff_shoot(game: GameModel, sheriff_id: str, target_id: str) -> dict:
+    """
+    Sheriff attempts to shoot a target.
+    If target is impostor → target dies.
+    If target is crewmate/other → sheriff dies.
+    Returns dict with result info.
+    """
+    sheriff = game.players.get(sheriff_id)
+    target = game.players.get(target_id)
+
+    if not sheriff or sheriff.role != Role.SHERIFF:
+        return {"success": False, "error": "Not a sheriff"}
+
+    if sheriff.status != PlayerStatus.ALIVE:
+        return {"success": False, "error": "Sheriff is dead"}
+
+    if not target:
+        return {"success": False, "error": "Target not found"}
+
+    if target.status != PlayerStatus.ALIVE:
+        return {"success": False, "error": "Target is already dead"}
+
+    if target.id == sheriff.id:
+        return {"success": False, "error": "Cannot shoot yourself"}
+
+    # Determine outcome
+    if target.role == Role.IMPOSTOR:
+        # Sheriff hit an impostor - target dies
+        target.status = PlayerStatus.DEAD
+        return {
+            "success": True,
+            "outcome": "hit",
+            "dead_player_id": target.id,
+            "dead_player_name": target.name,
+            "message": f"{target.name} was an Impostor!"
+        }
+    else:
+        # Sheriff missed - sheriff dies
+        sheriff.status = PlayerStatus.DEAD
+        return {
+            "success": True,
+            "outcome": "miss",
+            "dead_player_id": sheriff.id,
+            "dead_player_name": sheriff.name,
+            "message": f"{target.name} was innocent. Sheriff is dead."
+        }
 
 
 def mark_player_dead(game: GameModel, player_id: str) -> bool:

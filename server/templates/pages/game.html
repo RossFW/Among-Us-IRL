@@ -50,6 +50,143 @@
                     <input type="checkbox" id="toggle-minion" onchange="toggleRole('minion')">
                     <span>Minion</span>
                 </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggle-sheriff" onchange="toggleRole('sheriff')">
+                    <span>Sheriff</span>
+                </label>
+            </div>
+
+            <!-- Per-Character Cooldown Settings -->
+            <div id="cooldown-settings" class="cooldown-settings" style="display: none;">
+                <!-- Impostor Cooldown -->
+                <div class="cooldown-row" id="impostor-cooldown-row">
+                    <span class="role-impostor">Impostor Kill</span>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('impostor_cooldown', -5)">-</button>
+                        <span class="timer-value"><span id="setting-impostor-cooldown">45</span>s</span>
+                        <button class="btn-small" onclick="adjustSetting('impostor_cooldown', 5)">+</button>
+                    </div>
+                </div>
+                <!-- Sheriff Cooldown -->
+                <div class="cooldown-row" id="sheriff-cooldown-row" style="display: none;">
+                    <span class="role-sheriff">Sheriff Shoot</span>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('sheriff_cooldown', -5)">-</button>
+                        <span class="timer-value"><span id="setting-sheriff-cooldown">45</span>s</span>
+                        <button class="btn-small" onclick="adjustSetting('sheriff_cooldown', 5)">+</button>
+                    </div>
+                </div>
+                <!-- Lone Wolf Cooldown -->
+                <div class="cooldown-row" id="lonewolf-cooldown-row" style="display: none;">
+                    <span class="role-lone-wolf">Lone Wolf Kill</span>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('lonewolf_cooldown', -5)">-</button>
+                        <span class="timer-value"><span id="setting-lonewolf-cooldown">45</span>s</span>
+                        <button class="btn-small" onclick="adjustSetting('lonewolf_cooldown', 5)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sabotage Settings -->
+            <div class="sabotage-settings">
+                <div class="section-header" onclick="toggleSabotageSettings()">
+                    <h4>Sabotage</h4>
+                    <span id="sabotage-toggle-icon">+</span>
+                </div>
+                <div id="sabotage-settings-content" style="display: none;">
+                    <label class="toggle">
+                        <input type="checkbox" id="toggle-sabotage" onchange="toggleSabotageSetting()">
+                        <span>Enable Sabotage</span>
+                    </label>
+                    <div id="sabotage-config" style="display: none;">
+                        <div class="setting">
+                            <label>Sabotage Cooldown</label>
+                            <div class="number-control">
+                                <button class="btn-small" onclick="adjustSetting('sabotage_cooldown', -5)">-</button>
+                                <span class="timer-value"><span id="setting-sabotage-cooldown">90</span>s</span>
+                                <button class="btn-small" onclick="adjustSetting('sabotage_cooldown', 5)">+</button>
+                            </div>
+                        </div>
+                        <div class="sabotage-list">
+                            <!-- Sabotage 1: Lights -->
+                            <div class="sabotage-item">
+                                <label class="toggle">
+                                    <input type="checkbox" id="toggle-sab-1" checked onchange="toggleSabotageItem(1)">
+                                    <span id="sab-1-name">Lights</span>
+                                </label>
+                                <span class="sab-type">(no timer)</span>
+                            </div>
+                            <!-- Sabotage 2: Reactor -->
+                            <div class="sabotage-item">
+                                <label class="toggle">
+                                    <input type="checkbox" id="toggle-sab-2" checked onchange="toggleSabotageItem(2)">
+                                    <span id="sab-2-name">Reactor</span>
+                                </label>
+                                <div class="number-control">
+                                    <button class="btn-small" onclick="adjustSabotageTimer(2, -5)">-</button>
+                                    <span class="timer-value"><span id="sab-2-timer">45</span>s</span>
+                                    <button class="btn-small" onclick="adjustSabotageTimer(2, 5)">+</button>
+                                </div>
+                            </div>
+                            <!-- Sabotage 3: O2 -->
+                            <div class="sabotage-item">
+                                <label class="toggle">
+                                    <input type="checkbox" id="toggle-sab-3" checked onchange="toggleSabotageItem(3)">
+                                    <span id="sab-3-name">O2</span>
+                                </label>
+                                <div class="number-control">
+                                    <button class="btn-small" onclick="adjustSabotageTimer(3, -5)">-</button>
+                                    <span class="timer-value"><span id="sab-3-timer">45</span>s</span>
+                                    <button class="btn-small" onclick="adjustSabotageTimer(3, 5)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meeting & Voting Settings -->
+            <div class="meeting-voting-settings">
+                <div class="section-header" onclick="toggleMeetingSettings()">
+                    <h4>Meetings & Voting</h4>
+                    <span id="meeting-toggle-icon">+</span>
+                </div>
+                <div id="meeting-settings-content" style="display: none;">
+                    <label class="toggle">
+                        <input type="checkbox" id="toggle-voting" onchange="toggleVotingSetting()">
+                        <span>Enable In-App Voting</span>
+                    </label>
+                    <div id="voting-config" style="display: none;">
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-anonymous" onchange="toggleAnonymousVoting()">
+                            <span>Anonymous Voting</span>
+                        </label>
+                        <div class="setting">
+                            <label>Meeting Timer</label>
+                            <div class="number-control">
+                                <button class="btn-small" onclick="adjustSetting('meeting_timer', -10)">-</button>
+                                <span class="timer-value"><span id="setting-meeting-timer">120</span>s</span>
+                                <button class="btn-small" onclick="adjustSetting('meeting_timer', 10)">+</button>
+                            </div>
+                        </div>
+                        <div class="setting">
+                            <label>Warning Sound At</label>
+                            <div class="number-control">
+                                <button class="btn-small" onclick="adjustSetting('meeting_warning', -5)">-</button>
+                                <span class="timer-value"><span id="setting-meeting-warning">30</span>s</span>
+                                <button class="btn-small" onclick="adjustSetting('meeting_warning', 5)">+</button>
+                            </div>
+                        </div>
+                        <div class="setting">
+                            <label>Discussion Time</label>
+                            <div class="number-control">
+                                <button class="btn-small" onclick="adjustSetting('discussion_time', -5)">-</button>
+                                <span class="timer-value"><span id="setting-discussion-time">5</span>s</span>
+                                <button class="btn-small" onclick="adjustSetting('discussion_time', 5)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Task Management -->
@@ -72,56 +209,145 @@
             </button>
         </div>
 
-        <!-- Rules Button (visible to all) -->
-        <button class="btn btn-secondary rules-btn" onclick="showRules()">
-            How to Play
-        </button>
+        <!-- Rules and Leave Buttons (visible to all) -->
+        <div class="lobby-actions">
+            <button class="btn btn-secondary" onclick="showRules()">
+                How to Play
+            </button>
+            <button class="btn btn-danger-outline" onclick="leaveGame()">
+                Leave Game
+            </button>
+        </div>
 
         <div id="waiting-message" class="waiting-message">
             Waiting for host to start...
         </div>
     </div>
 
+    <!-- Sabotage Alert Banner (fixed at top when sabotage active) -->
+    <div id="sabotage-alert" class="sabotage-alert" style="display: none;">
+        <div class="sabotage-alert-content">
+            <div class="sabotage-name" id="active-sabotage-name">LIGHTS OUT!</div>
+            <div class="sabotage-timer" id="active-sabotage-timer" style="display: none;">
+                <span id="sabotage-remaining">45</span>s
+            </div>
+            <div class="sabotage-fix-info" id="sabotage-fix-info"></div>
+            <button class="btn btn-success" id="fix-sabotage-btn" onclick="fixSabotage()">FIX</button>
+            <button class="btn btn-success" id="hold-sabotage-btn" style="display: none;"
+                onmousedown="holdReactorStart()" onmouseup="holdReactorEnd()"
+                ontouchstart="holdReactorStart()" ontouchend="holdReactorEnd()">
+                HOLD TO FIX
+            </button>
+        </div>
+    </div>
+
     <!-- Game Screen -->
     <div id="game-screen" class="screen" style="display: none;">
-        <div class="role-display" id="role-display">
-            <span class="role-label">You are</span>
-            <span class="role-name" id="role-name">CREWMATE</span>
-            <p class="role-description" id="role-description"></p>
-        </div>
-
-        <div id="fellow-impostors" class="fellow-impostors" style="display: none;">
-            <span class="label">Fellow Impostors:</span>
-            <span id="impostor-names"></span>
-        </div>
-
-        <div class="task-progress">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-            </div>
-            <span class="progress-text" id="progress-text">0% Tasks Complete</span>
-        </div>
-
+        <!-- Tasks at top (visible immediately) -->
         <div class="tasks-section">
             <h3>Your Tasks</h3>
             <div id="task-list" class="task-list"></div>
         </div>
 
         <div class="action-buttons">
-            <button class="btn btn-warning btn-large" id="call-meeting-btn" onclick="callMeeting()">
+            <button class="btn btn-danger btn-large" id="report-body-btn" onclick="reportBody()">
+                REPORT BODY
+            </button>
+            <button class="btn btn-warning-outline" id="call-meeting-btn" onclick="callMeeting()">
                 CALL MEETING
             </button>
-            <button class="btn btn-danger" id="im-dead-btn" onclick="markDead()">
+            <button class="btn btn-secondary" id="im-dead-btn" onclick="markDead()">
                 I'M DEAD
             </button>
+            <button class="btn btn-secondary" id="map-btn" onclick="showMapGallery()">
+                MAP
+            </button>
+        </div>
+
+        <!-- Scroll hint right below buttons -->
+        <div class="scroll-hint">
+            <span class="scroll-arrow">↓</span>
+            <span class="scroll-text">Scroll down to see your role</span>
+            <span class="scroll-arrow">↓</span>
+        </div>
+
+        <!-- Scroll spacer to hide role below the fold -->
+        <div class="scroll-spacer"></div>
+
+        <!-- Role info below the fold (scroll down to see) -->
+        <div class="role-info-section">
+            <!-- Compact role indicator -->
+            <div class="role-badge" id="role-badge">
+                <span class="role-name-small" id="role-name-badge">CREWMATE</span>
+            </div>
+
+            <div class="role-display" id="role-display">
+                <span class="role-label">You are</span>
+                <span class="role-name" id="role-name">CREWMATE</span>
+                <p class="role-description" id="role-description"></p>
+            </div>
+
+            <!-- Jester voted out button - below role card, only visible for Jester -->
+            <button class="btn btn-jester btn-large" id="jester-voted-btn" onclick="jesterVotedOut()" style="display: none;">
+                I WAS VOTED OUT!
+            </button>
+
+            <div id="fellow-impostors" class="fellow-impostors" style="display: none;">
+                <span class="label">Fellow Impostors:</span>
+                <span id="impostor-names"></span>
+            </div>
+
+            <!-- Sabotage Section (Impostor only) -->
+            <div id="impostor-sabotage-section" class="sabotage-section" style="display: none;">
+                <h3>Sabotage</h3>
+                <div id="impostor-sabotage-buttons" class="sabotage-buttons">
+                    <!-- Dynamically populated -->
+                </div>
+                <div id="impostor-sabotage-cooldown" class="sabotage-cooldown" style="display: none;">
+                    Cooldown: <span id="impostor-sabotage-cooldown-time">0</span>s
+                </div>
+            </div>
+
+            <!-- Kill Cooldown Timer (for impostor/sheriff) -->
+            <div id="cooldown-timer" class="cooldown-timer" style="display: none;">
+                <div class="cooldown-display">
+                    <span id="cooldown-text">Kill Ready</span>
+                    <button class="btn btn-small start-cooldown-btn" id="start-cooldown-btn" onclick="startCooldown()">Start Timer</button>
+                </div>
+            </div>
+
+            <!-- Task Progress (hidden between meetings) -->
+            <div class="task-progress" id="game-task-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <span class="progress-text" id="progress-text">0% Tasks Complete</span>
+            </div>
         </div>
     </div>
 
     <!-- Meeting Screen -->
     <div id="meeting-screen" class="screen" style="display: none;">
-        <div class="meeting-header">
-            <h1>MEETING</h1>
+        <div class="meeting-header" id="meeting-header">
+            <h1 id="meeting-title">MEETING</h1>
             <p id="meeting-caller"></p>
+        </div>
+
+        <!-- Gathering Phase (waiting for caller to start meeting) -->
+        <div id="gathering-section" style="display: none;">
+            <div id="gathering-message" class="gathering-message">
+                Waiting for meeting to start...
+            </div>
+            <button class="btn btn-primary btn-large" id="start-meeting-btn" onclick="startVotingPhase()" style="display: none;">
+                START MEETING
+            </button>
+        </div>
+
+        <!-- Meeting Timer -->
+        <div class="meeting-timer" id="meeting-timer" style="display: none;">
+            <div class="timer-circle">
+                <span id="meeting-timer-display">2:00</span>
+            </div>
         </div>
 
         <div class="task-progress">
@@ -131,7 +357,33 @@
             <span class="progress-text" id="meeting-progress-text">0% Tasks Complete</span>
         </div>
 
-        <div class="meeting-players">
+        <!-- Voting Section -->
+        <div class="voting-section" id="voting-section" style="display: none;">
+            <h3>Vote to Eliminate</h3>
+            <div id="vote-options" class="vote-options">
+                <!-- Populated with alive players as vote buttons -->
+            </div>
+            <button class="btn btn-secondary btn-large" id="skip-vote-btn" onclick="castVote(null)">
+                SKIP VOTE
+            </button>
+            <div class="vote-status" id="vote-status">
+                <span id="votes-cast-count">0</span> / <span id="votes-needed-count">0</span> voted
+            </div>
+            <!-- Vote feed for non-anonymous voting -->
+            <div class="vote-feed" id="vote-feed" style="display: none;">
+                <!-- Shows "Player voted for Target" entries -->
+            </div>
+        </div>
+
+        <!-- Vote Results Section -->
+        <div class="vote-results" id="vote-results-section" style="display: none;">
+            <h3>Vote Results</h3>
+            <div id="vote-results-list"></div>
+            <div id="vote-outcome"></div>
+        </div>
+
+        <!-- Players Lists (shown when voting disabled) -->
+        <div class="meeting-players" id="meeting-players-section">
             <div class="alive-section">
                 <h3>Alive</h3>
                 <div id="alive-list" class="player-list"></div>
@@ -193,6 +445,10 @@
                     <h3 class="role-minion">Minion</h3>
                     <p>Help the impostors win! You know who they are, but you cannot kill. Misdirect the crew!</p>
                 </div>
+                <div class="rule-section" id="rule-sheriff" style="display: none;">
+                    <h3 class="role-sheriff">Sheriff</h3>
+                    <p>You have tasks like a crewmate, but you can also shoot! Whisper to a player that you're shooting them. If they're an impostor, they die. If they're innocent, YOU die! (Trust-based)</p>
+                </div>
                 <div class="rule-section">
                     <h3>Gameplay</h3>
                     <ul>
@@ -204,10 +460,90 @@
             </div>
         </div>
     </div>
+
+    <!-- Map Gallery Modal -->
+    <div id="map-modal" class="modal" style="display: none;">
+        <div class="modal-content map-modal-content">
+            <div class="modal-header">
+                <h2>Map</h2>
+                <button class="modal-close" onclick="hideMapGallery()">&times;</button>
+            </div>
+            <div class="map-gallery">
+                <div class="map-swiper" id="map-swiper">
+                    <div class="map-slide active" data-index="0">
+                        <img src="/static/images/maps/downstairs1.png" alt="Downstairs 1" class="zoomable-map">
+                        <div class="map-label">Downstairs 1</div>
+                    </div>
+                    <div class="map-slide" data-index="1">
+                        <img src="/static/images/maps/downstairs2.png" alt="Downstairs 2" class="zoomable-map">
+                        <div class="map-label">Downstairs 2</div>
+                    </div>
+                    <div class="map-slide" data-index="2">
+                        <img src="/static/images/maps/upstairs1.png" alt="Upstairs 1" class="zoomable-map">
+                        <div class="map-label">Upstairs 1</div>
+                    </div>
+                    <div class="map-slide" data-index="3">
+                        <img src="/static/images/maps/upstairs2.png" alt="Upstairs 2" class="zoomable-map">
+                        <div class="map-label">Upstairs 2</div>
+                    </div>
+                </div>
+                <div class="map-indicators">
+                    <span class="map-indicator active" data-index="0" onclick="goToMapSlide(0)"></span>
+                    <span class="map-indicator" data-index="1" onclick="goToMapSlide(1)"></span>
+                    <span class="map-indicator" data-index="2" onclick="goToMapSlide(2)"></span>
+                    <span class="map-indicator" data-index="3" onclick="goToMapSlide(3)"></span>
+                </div>
+                <div class="map-nav">
+                    <button class="map-nav-btn" onclick="prevMapSlide()">&#8249;</button>
+                    <button class="map-nav-btn" onclick="nextMapSlide()">&#8250;</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<audio id="siren-sound" preload="auto">
-    <source src="/static/sounds/siren.mp3" type="audio/mpeg">
+<!-- Game sounds -->
+<audio id="sound-game-start" preload="auto">
+    <source src="/static/sounds/Start_of_game_role_reveal.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-meeting" preload="auto">
+    <source src="/static/sounds/Meeting_or_body.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Win condition sounds -->
+<audio id="sound-crewmate-win" preload="auto">
+    <source src="/static/sounds/Wincon Sounds/Crewmates_win.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-impostor-win" preload="auto">
+    <source src="/static/sounds/Wincon Sounds/Imposters_win.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-jester-win" preload="auto">
+    <source src="/static/sounds/Wincon Sounds/Jester_win.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-lonewolf-win" preload="auto">
+    <source src="/static/sounds/Wincon Sounds/Lone_wolf_win.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Voting sounds -->
+<audio id="sound-voting-warning" preload="auto">
+    <source src="/static/sounds/Voting/Voting_warning.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-time-to-vote" preload="auto">
+    <source src="/static/sounds/Voting/Time_to_vote.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Sabotage sounds -->
+<audio id="sound-lights-sabotage" preload="auto">
+    <source src="/static/sounds/Sabotage/lights_sabotaged.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-lights-fixed" preload="auto">
+    <source src="/static/sounds/Sabotage/lights_on.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-reactor-sabotage" preload="auto">
+    <source src="/static/sounds/Sabotage/Reactor_Oxygen_sabotaged.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-reactor-fixed" preload="auto">
+    <source src="/static/sounds/Sabotage/Reactor_Oxygen_on.mp3" type="audio/mpeg">
 </audio>
 
 <script>
@@ -219,8 +555,31 @@ let ws = null;
 let gameState = 'lobby';
 let isHost = false;
 let myRole = null;
-let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false };
+let hasUsedMeeting = false;  // Track if player used their one emergency meeting
+let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false, enable_sheriff: false, kill_cooldown: 45, impostor_kill_cooldown: 45, sheriff_shoot_cooldown: 45, lone_wolf_kill_cooldown: 45, enable_sabotage: false, sabotage_cooldown: 90, meeting_cooldown: 30, enable_voting: true, anonymous_voting: false, meeting_timer_duration: 120, meeting_warning_time: 30, discussion_time: 5 };
+let killCooldownTimer = null;
+let cooldownEndTime = null;
 let availableTasks = [];
+let allPlayers = [];
+
+// Voting state
+let meetingTimerInterval = null;
+let meetingEndTime = null;
+let hasVoted = false;
+let warningPlayed = false;
+let votingEnabled = false;
+let meetingCallerId = null;
+let meetingCallerName = null;
+let meetingPayload = null;  // Store meeting payload for when voting starts
+
+// Sound helper function
+function playSound(soundId) {
+    const sound = document.getElementById(soundId);
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(e => console.log('Sound play failed:', e));
+    }
+}
 
 // Redirect if no session
 if (!sessionToken) {
@@ -276,7 +635,7 @@ function handleMessage(msg) {
             handleGameStart(msg.payload);
             break;
         case 'task_completed':
-            updateProgress(msg.payload.task_percentage);
+            // Don't update progress bar in real-time - only visible during meetings
             break;
         case 'meeting_called':
             handleMeetingStart(msg.payload);
@@ -285,15 +644,34 @@ function handleMessage(msg) {
             handleMeetingEnd();
             break;
         case 'player_died':
-            refreshGame();
+            handlePlayerDeath(msg.payload);
             break;
         case 'game_ended':
             handleGameEnd(msg.payload);
+            break;
+        case 'sabotage_started':
+            handleSabotageStarted(msg.payload);
+            break;
+        case 'sabotage_resolved':
+            handleSabotageResolved(msg.payload);
+            break;
+        case 'sabotage_update':
+            handleSabotageUpdate(msg.payload);
+            break;
+        case 'voting_started':
+            handleVotingStarted(msg.payload);
+            break;
+        case 'vote_cast':
+            handleVoteCast(msg.payload);
+            break;
+        case 'vote_results':
+            handleVoteResults(msg.payload);
             break;
     }
 }
 
 function handleStateSync(payload) {
+    allPlayers = payload.players;
     updatePlayers(payload.players);
     updateProgress(payload.task_percentage);
 
@@ -304,6 +682,24 @@ function handleStateSync(payload) {
 
     if (payload.game_state === 'playing') {
         showScreen('game-screen');
+
+        // Show sabotage UI for impostors
+        if (myRole === 'Impostor' && settings.enable_sabotage) {
+            showImpostorSabotageUI();
+        }
+
+        // Restore active sabotage state on reconnect
+        if (payload.active_sabotage) {
+            handleSabotageStarted(payload.active_sabotage);
+            // Update fix progress for reactor/o2
+            if (payload.active_sabotage.type === 'reactor') {
+                document.getElementById('sabotage-fix-info').textContent =
+                    `${payload.active_sabotage.reactor_holders}/2 people holding`;
+            } else if (payload.active_sabotage.type === 'o2') {
+                document.getElementById('sabotage-fix-info').textContent =
+                    `${payload.active_sabotage.o2_switches}/2 switches`;
+            }
+        }
     } else if (payload.game_state === 'meeting') {
         showScreen('meeting-screen');
     } else if (payload.game_state === 'ended') {
@@ -339,6 +735,29 @@ function updateSettingsUI() {
     document.getElementById('toggle-jester').checked = settings.enable_jester;
     document.getElementById('toggle-lonewolf').checked = settings.enable_lone_wolf;
     document.getElementById('toggle-minion').checked = settings.enable_minion;
+    document.getElementById('toggle-sheriff').checked = settings.enable_sheriff;
+    // Per-character cooldowns
+    document.getElementById('setting-impostor-cooldown').textContent = settings.impostor_kill_cooldown || settings.kill_cooldown;
+    document.getElementById('setting-sheriff-cooldown').textContent = settings.sheriff_shoot_cooldown || settings.kill_cooldown;
+    document.getElementById('setting-lonewolf-cooldown').textContent = settings.lone_wolf_kill_cooldown || settings.kill_cooldown;
+    updateCooldownSettingsVisibility();
+    updateSabotageSettingsUI();
+    updateMeetingSettingsUI();
+}
+
+function updateCooldownSettingsVisibility() {
+    const cooldownSection = document.getElementById('cooldown-settings');
+    const sheriffRow = document.getElementById('sheriff-cooldown-row');
+    const lonewolfRow = document.getElementById('lonewolf-cooldown-row');
+
+    // Always show cooldown settings (impostor always has one)
+    cooldownSection.style.display = 'block';
+
+    // Show Sheriff cooldown row only if Sheriff is enabled
+    sheriffRow.style.display = settings.enable_sheriff ? 'flex' : 'none';
+
+    // Show Lone Wolf cooldown row only if Lone Wolf is enabled
+    lonewolfRow.style.display = settings.enable_lone_wolf ? 'flex' : 'none';
 }
 
 async function adjustSetting(type, delta) {
@@ -349,6 +768,38 @@ async function adjustSetting(type, delta) {
     } else if (type === 'impostors') {
         const newVal = Math.max(1, Math.min(3, settings.num_impostors + delta));
         update.num_impostors = newVal;
+    } else if (type === 'cooldown') {
+        const newVal = Math.max(10, Math.min(120, settings.kill_cooldown + delta));
+        update.kill_cooldown = newVal;
+    } else if (type === 'impostor_cooldown') {
+        const current = settings.impostor_kill_cooldown || settings.kill_cooldown;
+        const newVal = Math.max(10, Math.min(120, current + delta));
+        update.impostor_kill_cooldown = newVal;
+    } else if (type === 'sheriff_cooldown') {
+        const current = settings.sheriff_shoot_cooldown || settings.kill_cooldown;
+        const newVal = Math.max(10, Math.min(120, current + delta));
+        update.sheriff_shoot_cooldown = newVal;
+    } else if (type === 'lonewolf_cooldown') {
+        const current = settings.lone_wolf_kill_cooldown || settings.kill_cooldown;
+        const newVal = Math.max(10, Math.min(120, current + delta));
+        update.lone_wolf_kill_cooldown = newVal;
+    } else if (type === 'sabotage_cooldown') {
+        const current = settings.sabotage_cooldown || 90;
+        const newVal = Math.max(10, Math.min(180, current + delta));
+        update.sabotage_cooldown = newVal;
+    } else if (type === 'meeting_timer') {
+        const current = settings.meeting_timer_duration || 120;
+        const newVal = Math.max(30, Math.min(300, current + delta));
+        update.meeting_timer_duration = newVal;
+    } else if (type === 'meeting_warning') {
+        const current = settings.meeting_warning_time || 30;
+        const maxWarning = settings.meeting_timer_duration || 120;
+        const newVal = Math.max(0, Math.min(maxWarning, current + delta));
+        update.meeting_warning_time = newVal;
+    } else if (type === 'discussion_time') {
+        const current = settings.discussion_time || 5;
+        const newVal = Math.max(0, Math.min(60, current + delta));  // 0-60 seconds
+        update.discussion_time = newVal;
     }
 
     await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
@@ -358,11 +809,413 @@ async function adjustSetting(type, delta) {
     });
 }
 
+// ==================== MEETING COOLDOWN ====================
+
+let meetingCooldownEnd = null;
+let meetingCooldownInterval = null;
+
+function startMeetingCooldown() {
+    meetingCooldownEnd = Date.now() + (settings.meeting_cooldown * 1000);
+    updateMeetingButtonCooldown();
+
+    if (meetingCooldownInterval) clearInterval(meetingCooldownInterval);
+    meetingCooldownInterval = setInterval(() => {
+        updateMeetingButtonCooldown();
+        if (Date.now() >= meetingCooldownEnd) {
+            clearInterval(meetingCooldownInterval);
+            meetingCooldownInterval = null;
+        }
+    }, 1000);
+}
+
+function updateMeetingButtonCooldown() {
+    const btn = document.getElementById('call-meeting-btn');
+    if (!btn) return;
+
+    // If already used meeting, keep it disabled with "MEETING USED" text
+    if (hasUsedMeeting) {
+        btn.textContent = 'MEETING USED';
+        btn.disabled = true;
+        return;
+    }
+
+    if (meetingCooldownEnd && Date.now() < meetingCooldownEnd) {
+        const remaining = Math.ceil((meetingCooldownEnd - Date.now()) / 1000);
+        btn.textContent = `MEETING (${remaining}s)`;
+        btn.disabled = true;
+    } else {
+        btn.textContent = 'CALL MEETING';
+        btn.disabled = activeSabotage !== null;  // Still disabled during sabotage
+    }
+}
+
+// ==================== SABOTAGE FUNCTIONS ====================
+
+let activeSabotage = null;
+let sabotageTimerInterval = null;
+let sabotageCooldownEnd = null;
+let sabotageCooldownInterval = null;
+
+function startSabotageCooldownTimer() {
+    if (sabotageCooldownInterval) clearInterval(sabotageCooldownInterval);
+
+    updateImpostorSabotageButtons();
+
+    sabotageCooldownInterval = setInterval(() => {
+        updateImpostorSabotageButtons();
+        if (!sabotageCooldownEnd || Date.now() >= sabotageCooldownEnd) {
+            clearInterval(sabotageCooldownInterval);
+            sabotageCooldownInterval = null;
+        }
+    }, 1000);
+}
+
+function toggleSabotageSettings() {
+    const content = document.getElementById('sabotage-settings-content');
+    const icon = document.getElementById('sabotage-toggle-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '-';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '+';
+    }
+}
+
+async function toggleSabotageSetting() {
+    const enabled = document.getElementById('toggle-sabotage').checked;
+    document.getElementById('sabotage-config').style.display = enabled ? 'block' : 'none';
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enable_sabotage: enabled })
+    });
+}
+
+async function toggleSabotageItem(index) {
+    const enabled = document.getElementById(`toggle-sab-${index}`).checked;
+    const update = {};
+    update[`sabotage_${index}_enabled`] = enabled;
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update)
+    });
+}
+
+async function adjustSabotageTimer(index, delta) {
+    const current = parseInt(document.getElementById(`sab-${index}-timer`).textContent) || 45;
+    const newVal = Math.max(10, Math.min(120, current + delta));
+    const update = {};
+    update[`sabotage_${index}_timer`] = newVal;
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update)
+    });
+}
+
+function updateSabotageSettingsUI() {
+    document.getElementById('toggle-sabotage').checked = settings.enable_sabotage;
+    document.getElementById('sabotage-config').style.display = settings.enable_sabotage ? 'block' : 'none';
+    document.getElementById('setting-sabotage-cooldown').textContent = settings.sabotage_cooldown || 90;
+
+    for (let i = 1; i <= 4; i++) {
+        const enabled = settings[`sabotage_${i}_enabled`];
+        const name = settings[`sabotage_${i}_name`];
+        const timer = settings[`sabotage_${i}_timer`];
+
+        const toggleEl = document.getElementById(`toggle-sab-${i}`);
+        const nameEl = document.getElementById(`sab-${i}-name`);
+        const timerEl = document.getElementById(`sab-${i}-timer`);
+
+        if (toggleEl) toggleEl.checked = enabled;
+        if (nameEl) nameEl.textContent = name;
+        if (timerEl) timerEl.textContent = timer;
+    }
+}
+
+// ==================== MEETING & VOTING SETTINGS ====================
+
+function toggleMeetingSettings() {
+    const content = document.getElementById('meeting-settings-content');
+    const icon = document.getElementById('meeting-toggle-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '-';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '+';
+    }
+}
+
+async function toggleVotingSetting() {
+    const enabled = document.getElementById('toggle-voting').checked;
+
+    // Update local settings immediately (optimistic update)
+    settings.enable_voting = enabled;
+    document.getElementById('voting-config').style.display = enabled ? 'block' : 'none';
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enable_voting: enabled })
+    });
+}
+
+async function toggleAnonymousVoting() {
+    const anonymous = document.getElementById('toggle-anonymous').checked;
+
+    // Update local settings immediately (optimistic update)
+    settings.anonymous_voting = anonymous;
+
+    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anonymous_voting: anonymous })
+    });
+}
+
+function updateMeetingSettingsUI() {
+    const toggleVoting = document.getElementById('toggle-voting');
+    const toggleAnonymous = document.getElementById('toggle-anonymous');
+    const votingConfig = document.getElementById('voting-config');
+    const timerDisplay = document.getElementById('setting-meeting-timer');
+    const warningDisplay = document.getElementById('setting-meeting-warning');
+    const discussionDisplay = document.getElementById('setting-discussion-time');
+
+    if (toggleVoting) {
+        toggleVoting.checked = settings.enable_voting || false;
+    }
+    if (toggleAnonymous) {
+        toggleAnonymous.checked = settings.anonymous_voting || false;
+    }
+    if (votingConfig) {
+        votingConfig.style.display = settings.enable_voting ? 'block' : 'none';
+    }
+    if (timerDisplay) {
+        timerDisplay.textContent = settings.meeting_timer_duration || 120;
+    }
+    if (warningDisplay) {
+        warningDisplay.textContent = settings.meeting_warning_time || 30;
+    }
+    if (discussionDisplay) {
+        discussionDisplay.textContent = settings.discussion_time ?? 5;
+    }
+}
+
+function showImpostorSabotageUI() {
+    const section = document.getElementById('impostor-sabotage-section');
+    if (!section) return;
+
+    // Show for impostors when sabotage is enabled
+    if (myRole === 'Impostor' && settings.enable_sabotage) {
+        section.style.display = 'block';
+        updateImpostorSabotageButtons();
+    } else {
+        section.style.display = 'none';
+    }
+}
+
+function updateImpostorSabotageButtons() {
+    const buttonsDiv = document.getElementById('impostor-sabotage-buttons');
+    if (!buttonsDiv) return;
+
+    let html = '';
+    for (let i = 1; i <= 4; i++) {
+        const enabled = settings[`sabotage_${i}_enabled`];
+        if (!enabled) continue;
+
+        const name = settings[`sabotage_${i}_name`];
+        const disabled = activeSabotage !== null || (sabotageCooldownEnd && Date.now() < sabotageCooldownEnd);
+
+        html += `<button class="sabotage-btn ${disabled ? 'on-cooldown' : ''}"
+                         onclick="startSabotage(${i})"
+                         ${disabled ? 'disabled' : ''}>
+                    ${name}
+                </button>`;
+    }
+
+    buttonsDiv.innerHTML = html;
+
+    // Update cooldown display
+    const cooldownDiv = document.getElementById('impostor-sabotage-cooldown');
+    if (sabotageCooldownEnd && Date.now() < sabotageCooldownEnd) {
+        const remaining = Math.ceil((sabotageCooldownEnd - Date.now()) / 1000);
+        cooldownDiv.style.display = 'block';
+        document.getElementById('impostor-sabotage-cooldown-time').textContent = remaining;
+    } else {
+        cooldownDiv.style.display = 'none';
+    }
+}
+
+async function startSabotage(index) {
+    try {
+        const response = await fetch(`/api/games/${gameCode}/sabotage/start?sabotage_index=${index}&session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            showError(data.detail || 'Failed to start sabotage');
+        }
+    } catch (e) {
+        showError('Connection error');
+    }
+}
+
+function handleSabotageStarted(payload) {
+    activeSabotage = payload;
+
+    // Show alert
+    document.getElementById('sabotage-alert').style.display = 'block';
+    document.getElementById('active-sabotage-name').textContent = payload.name.toUpperCase() + '!';
+
+    // Show timer if applicable
+    if (payload.timer > 0) {
+        document.getElementById('active-sabotage-timer').style.display = 'block';
+        document.getElementById('sabotage-remaining').textContent = payload.timer;
+        startSabotageTimer(payload.timer);
+    } else {
+        document.getElementById('active-sabotage-timer').style.display = 'none';
+    }
+
+    // Show appropriate fix button
+    if (payload.type === 'reactor') {
+        document.getElementById('fix-sabotage-btn').style.display = 'none';
+        document.getElementById('hold-sabotage-btn').style.display = 'inline-block';
+        document.getElementById('sabotage-fix-info').textContent = '2 people must HOLD simultaneously';
+    } else if (payload.type === 'o2') {
+        document.getElementById('fix-sabotage-btn').style.display = 'inline-block';
+        document.getElementById('hold-sabotage-btn').style.display = 'none';
+        document.getElementById('sabotage-fix-info').textContent = '2 switches needed (0/2)';
+    } else {
+        document.getElementById('fix-sabotage-btn').style.display = 'inline-block';
+        document.getElementById('hold-sabotage-btn').style.display = 'none';
+        document.getElementById('sabotage-fix-info').textContent = '';
+    }
+
+    // Disable call meeting during sabotage (report body still works)
+    if (!hasUsedMeeting) {
+        document.getElementById('call-meeting-btn').disabled = true;
+    }
+
+    // Update impostor UI
+    updateImpostorSabotageButtons();
+
+    // Play sabotage sound based on type
+    if (payload.type === 'lights') {
+        playSound('sound-lights-sabotage');
+    } else {
+        // Reactor and O2 use the same alarm sound
+        playSound('sound-reactor-sabotage');
+    }
+
+    // Vibrate
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100, 50, 100]);
+}
+
+function startSabotageTimer(seconds) {
+    let remaining = seconds;
+
+    if (sabotageTimerInterval) clearInterval(sabotageTimerInterval);
+
+    sabotageTimerInterval = setInterval(async () => {
+        remaining--;
+        document.getElementById('sabotage-remaining').textContent = remaining;
+
+        if (remaining <= 0) {
+            clearInterval(sabotageTimerInterval);
+            // Check timeout on server
+            await fetch(`/api/games/${gameCode}/sabotage/check_timeout?session_token=${sessionToken}`, {
+                method: 'POST'
+            });
+        }
+    }, 1000);
+}
+
+function handleSabotageResolved(payload) {
+    activeSabotage = null;
+
+    // Hide alert (except for lights which persists - but we still hide alert UI)
+    document.getElementById('sabotage-alert').style.display = 'none';
+
+    if (sabotageTimerInterval) {
+        clearInterval(sabotageTimerInterval);
+        sabotageTimerInterval = null;
+    }
+
+    // Re-enable meeting button (if not already used)
+    if (!hasUsedMeeting) {
+        document.getElementById('call-meeting-btn').disabled = false;
+    }
+
+    // Play fixed sound based on type
+    if (payload.type === 'lights') {
+        playSound('sound-lights-fixed');
+    } else {
+        // Reactor and O2 use the same fixed sound
+        playSound('sound-reactor-fixed');
+    }
+
+    // Set cooldown
+    sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
+
+    // Update impostor UI
+    updateImpostorSabotageButtons();
+}
+
+function handleSabotageUpdate(payload) {
+    if (payload.type === 'reactor') {
+        document.getElementById('sabotage-fix-info').textContent = `${payload.holders}/2 people holding`;
+    } else if (payload.type === 'o2') {
+        document.getElementById('sabotage-fix-info').textContent = `${payload.switches}/2 switches`;
+    }
+}
+
+async function fixSabotage() {
+    try {
+        await fetch(`/api/games/${gameCode}/sabotage/fix?session_token=${sessionToken}&action=tap`, {
+            method: 'POST'
+        });
+    } catch (e) {
+        showError('Failed to fix sabotage');
+    }
+}
+
+async function holdReactorStart() {
+    try {
+        await fetch(`/api/games/${gameCode}/sabotage/fix?session_token=${sessionToken}&action=hold_start`, {
+            method: 'POST'
+        });
+        document.getElementById('hold-sabotage-btn').textContent = 'HOLDING...';
+        document.getElementById('hold-sabotage-btn').classList.add('holding');
+    } catch (e) {
+        showError('Failed to hold');
+    }
+}
+
+async function holdReactorEnd() {
+    try {
+        await fetch(`/api/games/${gameCode}/sabotage/fix?session_token=${sessionToken}&action=hold_end`, {
+            method: 'POST'
+        });
+        document.getElementById('hold-sabotage-btn').textContent = 'HOLD TO FIX';
+        document.getElementById('hold-sabotage-btn').classList.remove('holding');
+    } catch (e) {
+        // Ignore
+    }
+}
+
 async function toggleRole(role) {
     let update = {};
     if (role === 'jester') update.enable_jester = document.getElementById('toggle-jester').checked;
     if (role === 'lonewolf') update.enable_lone_wolf = document.getElementById('toggle-lonewolf').checked;
     if (role === 'minion') update.enable_minion = document.getElementById('toggle-minion').checked;
+    if (role === 'sheriff') update.enable_sheriff = document.getElementById('toggle-sheriff').checked;
 
     await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
         method: 'PATCH',
@@ -399,8 +1252,29 @@ function handleGameStart(payload) {
     updateProgress(payload.task_percentage);
     showScreen('game-screen');
 
-    // Play a short vibration on game start
-    if (navigator.vibrate) navigator.vibrate(200);
+    // Scroll to top so player must scroll down to see their role
+    window.scrollTo(0, 0);
+
+    showCooldownTimer();
+
+    // Play scary horror theme on game start
+    playSound('sound-game-start');
+
+    // Start kill cooldown timer at game start for impostor/sheriff/lone wolf
+    if (myRole === 'Impostor' || myRole === 'Sheriff' || myRole === 'Lone Wolf') {
+        startCooldown();
+    }
+
+    // Start meeting cooldown at game start
+    startMeetingCooldown();
+
+    // Show sabotage UI for impostors (alive or dead can use it)
+    if (myRole === 'Impostor' && settings.enable_sabotage) {
+        showImpostorSabotageUI();
+        // Start sabotage cooldown timer display
+        sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
+        startSabotageCooldownTimer();
+    }
 }
 
 function updateRoleUI(roleInfo) {
@@ -409,25 +1283,31 @@ function updateRoleUI(roleInfo) {
     const roleDesc = document.getElementById('role-description');
     const taskList = document.getElementById('task-list');
     const fellowImpostors = document.getElementById('fellow-impostors');
+    const roleBadge = document.getElementById('role-badge');
+    const roleNameBadge = document.getElementById('role-name-badge');
 
     roleName.textContent = roleInfo.role.toUpperCase();
     roleDisplay.className = 'role-display role-' + roleInfo.role.toLowerCase().replace(' ', '-');
+
+    // Update compact role badge at top
+    roleNameBadge.textContent = roleInfo.role.toUpperCase();
+    roleBadge.className = 'role-badge role-' + roleInfo.role.toLowerCase().replace(' ', '-');
 
     const descriptions = {
         'Crewmate': 'Complete your tasks. Find the impostors.',
         'Impostor': 'Eliminate crewmates. Don\'t get caught.',
         'Jester': 'Get yourself voted out to win!',
         'Lone Wolf': 'Survive until you\'re the last one standing.',
-        'Minion': 'Help the impostors win. You cannot kill.'
+        'Minion': 'Help the impostors win. You cannot kill.',
+        'Sheriff': 'Complete tasks. Whisper to shoot someone - miss and you die!'
     };
     roleDesc.textContent = descriptions[roleInfo.role] || '';
 
-    // Show tasks
+    // Show tasks (no fake label shown - would reveal role if someone peeks at phone)
     taskList.innerHTML = roleInfo.tasks.map(t => `
         <div class="task-item ${t.status === 'completed' ? 'completed' : ''}" data-id="${t.id}">
-            <span class="task-check" onclick="completeTask('${t.id}')">${t.status === 'completed' ? '✓' : ''}</span>
+            <span class="task-check" onclick="toggleTask('${t.id}')">${t.status === 'completed' ? '✓' : ''}</span>
             <span class="task-name">${t.name}</span>
-            ${t.is_fake ? '<span class="fake-label">(fake)</span>' : ''}
         </div>
     `).join('');
 
@@ -437,6 +1317,14 @@ function updateRoleUI(roleInfo) {
         document.getElementById('impostor-names').textContent = roleInfo.fellow_impostors.map(i => i.name).join(', ');
     } else {
         fellowImpostors.style.display = 'none';
+    }
+
+    // Show Jester voted out button only for Jesters
+    const jesterBtn = document.getElementById('jester-voted-btn');
+    if (roleInfo.role === 'Jester') {
+        jesterBtn.style.display = 'block';
+    } else {
+        jesterBtn.style.display = 'none';
     }
 }
 
@@ -448,44 +1336,117 @@ function updateProgress(percentage) {
     texts.forEach(text => text.textContent = percentage + '% Tasks Complete');
 }
 
-async function completeTask(taskId) {
-    if (myRole !== 'Crewmate') return;
+async function toggleTask(taskId) {
+    const taskEl = document.querySelector(`.task-item[data-id="${taskId}"]`);
+    if (!taskEl) return;
 
-    try {
-        const response = await fetch(`/api/tasks/${taskId}/complete?session_token=${sessionToken}`, {
-            method: 'POST'
-        });
+    const isCompleted = taskEl.classList.contains('completed');
 
-        if (response.ok) {
-            // Update UI optimistically
-            const taskEl = document.querySelector(`.task-item[data-id="${taskId}"]`);
-            if (taskEl) {
-                taskEl.classList.add('completed');
-                taskEl.querySelector('.task-check').textContent = '✓';
+    // For Crewmates and Sheriffs, update server (real tasks)
+    if (myRole === 'Crewmate' || myRole === 'Sheriff') {
+        const endpoint = isCompleted ? 'uncomplete' : 'complete';
+        try {
+            const response = await fetch(`/api/tasks/${taskId}/${endpoint}?session_token=${sessionToken}`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                toggleTaskUI(taskEl, isCompleted);
             }
+        } catch (e) {
+            console.error('Failed to toggle task:', e);
         }
-    } catch (e) {
-        console.error('Failed to complete task:', e);
+    } else {
+        // For other roles (Impostor, Jester, etc.), just toggle UI locally (fake tasks)
+        toggleTaskUI(taskEl, isCompleted);
+    }
+}
+
+function toggleTaskUI(taskEl, wasCompleted) {
+    if (wasCompleted) {
+        taskEl.classList.remove('completed');
+        taskEl.querySelector('.task-check').textContent = '';
+    } else {
+        taskEl.classList.add('completed');
+        taskEl.querySelector('.task-check').textContent = '✓';
     }
 }
 
 async function callMeeting() {
     const btn = document.getElementById('call-meeting-btn');
+
+    // Can only call meeting once per game
+    if (hasUsedMeeting) {
+        return;
+    }
+
+    // Check meeting cooldown
+    if (meetingCooldownEnd && Date.now() < meetingCooldownEnd) {
+        return;  // Still on cooldown
+    }
+
+    // Check if sabotage is active (can't call meeting during sabotage)
+    if (activeSabotage) {
+        showError('Cannot call meeting during sabotage!');
+        return;
+    }
+
     btn.disabled = true;
 
     try {
-        await fetch(`/api/games/${gameCode}/meeting/start?session_token=${sessionToken}`, {
+        const response = await fetch(`/api/games/${gameCode}/meeting/start?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            // Mark meeting as used - can't use again this game
+            hasUsedMeeting = true;
+            btn.textContent = 'MEETING USED';
+            btn.disabled = true;
+        }
+    } catch (e) {
+        showError('Failed to call meeting');
+        btn.disabled = false;
+    }
+}
+
+async function reportBody() {
+    // Report body always works - no cooldown constraint
+    const btn = document.getElementById('report-body-btn');
+    btn.disabled = true;
+
+    try {
+        await fetch(`/api/games/${gameCode}/meeting/start?session_token=${sessionToken}&meeting_type=body_report`, {
             method: 'POST'
         });
     } catch (e) {
-        showError('Failed to call meeting');
+        showError('Failed to report body');
     } finally {
         btn.disabled = false;
     }
 }
 
 function handleMeetingStart(payload) {
-    document.getElementById('meeting-caller').textContent = `Called by ${payload.called_by}`;
+    const meetingHeader = document.getElementById('meeting-header');
+    const meetingTitle = document.getElementById('meeting-title');
+    const meetingCaller = document.getElementById('meeting-caller');
+
+    // Store caller info globally for two-phase meeting
+    meetingCallerId = payload.caller_id;
+    meetingCallerName = payload.called_by;
+    meetingPayload = payload;
+
+    // Display differently for body report vs emergency meeting
+    // HIDE reporter identity until meeting officially starts
+    if (payload.meeting_type === 'body_report') {
+        meetingHeader.classList.add('body-report');
+        meetingTitle.textContent = 'DEAD BODY REPORTED';
+        meetingCaller.textContent = '';  // Hidden until meeting starts
+    } else {
+        meetingHeader.classList.remove('body-report');
+        meetingTitle.textContent = 'EMERGENCY MEETING';
+        meetingCaller.textContent = '';  // Hidden until meeting starts
+    }
+
     updateProgress(payload.task_percentage);
 
     document.getElementById('alive-list').innerHTML = payload.alive_players.map(p => `
@@ -496,15 +1457,381 @@ function handleMeetingStart(payload) {
         <div class="player-item dead">${p.name}</div>
     `).join('');
 
+    // Reset voting state
+    hasVoted = false;
+    warningPlayed = false;
+    votingEnabled = payload.enable_voting || false;
+
+    // Reset vote feed
+    const voteFeed = document.getElementById('vote-feed');
+    voteFeed.innerHTML = '';
+    voteFeed.style.display = 'none';
+
+    // Get UI elements
+    const votingSection = document.getElementById('voting-section');
+    const meetingTimer = document.getElementById('meeting-timer');
+    const voteResultsSection = document.getElementById('vote-results-section');
+    const meetingPlayersSection = document.getElementById('meeting-players-section');
+    const gatheringSection = document.getElementById('gathering-section');
+
+    // Reset results section
+    voteResultsSection.style.display = 'none';
+
+    if (votingEnabled) {
+        // TWO-PHASE MEETING: Start in gathering phase
+        // Hide voting UI and timer until caller starts voting
+        votingSection.style.display = 'none';
+        meetingTimer.style.display = 'none';
+        meetingPlayersSection.style.display = 'none';
+
+        // Show gathering section
+        gatheringSection.style.display = 'block';
+
+        // Hide END MEETING button during gathering phase
+        document.getElementById('end-meeting-btn').style.display = 'none';
+
+        // Check if current player is the caller
+        const isCaller = playerId === payload.caller_id;
+
+        if (isCaller) {
+            // Caller sees START MEETING button
+            document.getElementById('start-meeting-btn').style.display = 'block';
+            document.getElementById('gathering-message').style.display = 'none';
+        } else {
+            // Everyone else sees waiting message
+            document.getElementById('start-meeting-btn').style.display = 'none';
+            document.getElementById('gathering-message').style.display = 'block';
+        }
+    } else {
+        // Voting disabled - show player lists as before
+        gatheringSection.style.display = 'none';
+        votingSection.style.display = 'none';
+        meetingTimer.style.display = 'none';
+        meetingPlayersSection.style.display = 'block';
+    }
+
     showScreen('meeting-screen');
 
-    // Play siren
-    const siren = document.getElementById('siren-sound');
-    siren.currentTime = 0;
-    siren.play().catch(() => {});
+    // Play meeting sound
+    playSound('sound-meeting');
 
-    // Vibrate
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    // Vibrate (if enabled)
+    if (settings.vibrate_meeting && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+async function startVotingPhase() {
+    // Called when the meeting caller clicks START MEETING
+    const btn = document.getElementById('start-meeting-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
+    try {
+        const response = await fetch(`/api/games/${gameCode}/meeting/start_voting?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            showError(data.detail || 'Failed to start meeting');
+            btn.disabled = false;
+            btn.textContent = 'START MEETING';
+        }
+        // Success - WebSocket will broadcast voting_started to everyone
+    } catch (e) {
+        showError('Failed to start meeting');
+        btn.disabled = false;
+        btn.textContent = 'START MEETING';
+    }
+}
+
+let discussionTimerInterval = null;
+
+function handleVotingStarted(payload) {
+    // Transition from gathering phase to voting phase
+    const gatheringSection = document.getElementById('gathering-section');
+    const votingSection = document.getElementById('voting-section');
+    const meetingTimer = document.getElementById('meeting-timer');
+
+    // Hide gathering section
+    gatheringSection.style.display = 'none';
+
+    // Show END MEETING button now that meeting has started
+    document.getElementById('end-meeting-btn').style.display = 'block';
+
+    // NOW reveal who called the meeting
+    const meetingCaller = document.getElementById('meeting-caller');
+    if (meetingPayload && meetingPayload.meeting_type === 'body_report') {
+        meetingCaller.textContent = `Reported by ${meetingCallerName}`;
+    } else {
+        meetingCaller.textContent = `Called by ${meetingCallerName}`;
+    }
+
+    // Check if current player is alive (only alive players can vote)
+    const me = allPlayers.find(p => p.id === playerId);
+    const amAlive = me && me.status !== 'dead';
+    // Also check if we're in the dead list
+    const inDeadList = meetingPayload && meetingPayload.dead_players.some(p => p.id === playerId);
+    const canVote = amAlive && !inDeadList;
+
+    // Show timer for everyone
+    meetingTimer.style.display = 'block';
+
+    // Show voting section
+    votingSection.style.display = 'block';
+
+    const discussionTime = payload.discussion_time || 0;
+    const voteOptions = document.getElementById('vote-options');
+    const skipBtn = document.getElementById('skip-vote-btn');
+
+    if (canVote) {
+        // Populate vote options with alive players (including self - Jester strategy!)
+        voteOptions.innerHTML = payload.alive_players
+            .map(p => `
+                <button class="btn vote-btn" onclick="castVote('${p.id}')" ${discussionTime > 0 ? 'disabled' : ''}>
+                    ${p.name}
+                </button>
+            `).join('');
+
+        // Setup skip button
+        skipBtn.style.display = 'block';
+        skipBtn.disabled = discussionTime > 0;
+        skipBtn.classList.remove('voted');
+    } else {
+        // Dead players see a message instead of voting options
+        voteOptions.innerHTML = '<div class="dead-voter-message">You are dead. You cannot vote.</div>';
+        skipBtn.style.display = 'none';
+    }
+
+    // Update vote counts
+    document.getElementById('votes-cast-count').textContent = '0';
+    document.getElementById('votes-needed-count').textContent = payload.alive_players.length;
+
+    // Handle discussion time countdown
+    if (discussionTime > 0) {
+        // Show discussion countdown in the voting section header
+        const votingHeader = votingSection.querySelector('h3');
+        let remaining = discussionTime;
+        votingHeader.textContent = `Discussion Time: ${remaining}s`;
+        votingHeader.classList.add('discussion-countdown');
+
+        discussionTimerInterval = setInterval(() => {
+            remaining--;
+            if (remaining > 0) {
+                votingHeader.textContent = `Discussion Time: ${remaining}s`;
+            } else {
+                // Discussion time ended - enable voting!
+                clearInterval(discussionTimerInterval);
+                discussionTimerInterval = null;
+                votingHeader.textContent = 'Vote to Eliminate';
+                votingHeader.classList.remove('discussion-countdown');
+
+                // Play "time to vote" sound when voting begins
+                playSound('sound-time-to-vote');
+
+                // Enable all vote buttons
+                if (canVote) {
+                    voteOptions.querySelectorAll('.vote-btn').forEach(btn => btn.disabled = false);
+                    skipBtn.disabled = false;
+                }
+            }
+        }, 1000);
+
+        // Start the full meeting timer (includes discussion time)
+        const timerDuration = payload.timer_duration || 120;
+        startMeetingTimer(timerDuration, payload.warning_time || 30);
+    } else {
+        // No discussion time - play sound and enable voting immediately
+        playSound('sound-time-to-vote');
+
+        // Start meeting timer
+        const timerDuration = payload.timer_duration || 120;
+        startMeetingTimer(timerDuration, payload.warning_time || 30);
+    }
+}
+
+// ==================== VOTING FUNCTIONS ====================
+
+function startMeetingTimer(durationSeconds, warningTime) {
+    if (meetingTimerInterval) clearInterval(meetingTimerInterval);
+
+    meetingEndTime = Date.now() + (durationSeconds * 1000);
+    warningPlayed = false;
+
+    updateMeetingTimerDisplay();
+    meetingTimerInterval = setInterval(() => {
+        updateMeetingTimerDisplay();
+
+        const remaining = Math.max(0, meetingEndTime - Date.now());
+        const remainingSeconds = Math.ceil(remaining / 1000);
+
+        // Play warning sound
+        if (!warningPlayed && remainingSeconds <= warningTime && remainingSeconds > 0) {
+            warningPlayed = true;
+            playSound('sound-voting-warning');
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        }
+
+        // Timer expired
+        if (remaining <= 0) {
+            clearInterval(meetingTimerInterval);
+            meetingTimerInterval = null;
+            handleTimerExpired();
+        }
+    }, 100);
+}
+
+function updateMeetingTimerDisplay() {
+    const display = document.getElementById('meeting-timer-display');
+    if (!meetingEndTime) {
+        display.textContent = '0:00';
+        return;
+    }
+
+    const remaining = Math.max(0, meetingEndTime - Date.now());
+    const totalSeconds = Math.ceil(remaining / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    display.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+    // Add warning class when low
+    const timerCircle = document.querySelector('.timer-circle');
+    if (timerCircle) {
+        if (totalSeconds <= 30) {
+            timerCircle.classList.add('warning');
+        } else {
+            timerCircle.classList.remove('warning');
+        }
+        if (totalSeconds <= 10) {
+            timerCircle.classList.add('critical');
+        } else {
+            timerCircle.classList.remove('critical');
+        }
+    }
+}
+
+async function handleTimerExpired() {
+    // Notify server that timer expired
+    try {
+        await fetch(`/api/games/${gameCode}/meeting/timer_expired?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+    } catch (e) {
+        console.error('Failed to notify timer expired:', e);
+    }
+}
+
+async function castVote(targetId) {
+    if (hasVoted) return;
+
+    // Disable all vote buttons immediately
+    const allVoteBtns = document.querySelectorAll('.vote-btn, #skip-vote-btn');
+    allVoteBtns.forEach(btn => btn.disabled = true);
+
+    try {
+        const url = targetId
+            ? `/api/games/${gameCode}/vote?session_token=${sessionToken}&target_id=${targetId}`
+            : `/api/games/${gameCode}/vote?session_token=${sessionToken}`;
+
+        const response = await fetch(url, { method: 'POST' });
+
+        if (response.ok) {
+            hasVoted = true;
+            // Highlight the selected vote
+            if (targetId) {
+                const votedBtn = document.querySelector(`.vote-btn[onclick="castVote('${targetId}')"]`);
+                if (votedBtn) votedBtn.classList.add('voted');
+            } else {
+                document.getElementById('skip-vote-btn').classList.add('voted');
+            }
+        } else {
+            // Re-enable buttons on error
+            allVoteBtns.forEach(btn => btn.disabled = false);
+            const data = await response.json();
+            showError(data.detail || 'Failed to cast vote');
+        }
+    } catch (e) {
+        // Re-enable buttons on error
+        allVoteBtns.forEach(btn => btn.disabled = false);
+        showError('Connection error');
+    }
+}
+
+function handleVoteCast(payload) {
+    console.log('Vote cast payload:', payload);  // Debug
+    console.log('Current settings.anonymous_voting:', settings.anonymous_voting);  // Debug
+
+    // Update vote count display
+    document.getElementById('votes-cast-count').textContent = payload.votes_cast;
+    document.getElementById('votes-needed-count').textContent = payload.votes_needed;
+
+    // If non-anonymous voting and we have voter info, show who voted
+    if (payload.voter_name && payload.target_name) {
+        const voteFeed = document.getElementById('vote-feed');
+        voteFeed.style.display = 'block';
+        const entry = document.createElement('div');
+        entry.className = 'vote-feed-entry';
+        entry.textContent = `${payload.voter_name} → ${payload.target_name}`;
+        voteFeed.appendChild(entry);
+    }
+}
+
+function handleVoteResults(payload) {
+    // Stop the timer
+    if (meetingTimerInterval) {
+        clearInterval(meetingTimerInterval);
+        meetingTimerInterval = null;
+    }
+
+    // Play "time to vote" sound (voting ended)
+    playSound('sound-time-to-vote');
+
+    // Hide voting section, show results
+    document.getElementById('voting-section').style.display = 'none';
+    document.getElementById('vote-results-section').style.display = 'block';
+
+    // Display vote counts
+    const resultsList = document.getElementById('vote-results-list');
+    let resultsHtml = '';
+
+    // Sort by vote count descending
+    const sortedResults = Object.entries(payload.vote_counts)
+        .sort((a, b) => b[1] - a[1]);
+
+    for (const [name, count] of sortedResults) {
+        const isEliminated = payload.eliminated_name === name;
+        resultsHtml += `
+            <div class="vote-result-item ${isEliminated ? 'eliminated' : ''}">
+                <span class="vote-result-name">${name}</span>
+                <span class="vote-result-count">${count} vote${count !== 1 ? 's' : ''}</span>
+            </div>
+        `;
+    }
+
+    // Show skip votes
+    if (payload.skip_count > 0) {
+        resultsHtml += `
+            <div class="vote-result-item skip">
+                <span class="vote-result-name">Skip</span>
+                <span class="vote-result-count">${payload.skip_count} vote${payload.skip_count !== 1 ? 's' : ''}</span>
+            </div>
+        `;
+    }
+
+    resultsList.innerHTML = resultsHtml;
+
+    // Display outcome
+    const outcomeEl = document.getElementById('vote-outcome');
+    if (payload.eliminated_name) {
+        outcomeEl.textContent = `${payload.eliminated_name} was ejected.`;
+        outcomeEl.className = 'vote-outcome ejected';
+    } else if (payload.outcome === 'tie') {
+        outcomeEl.textContent = 'No one was ejected. (Tie)';
+        outcomeEl.className = 'vote-outcome no-eject';
+    } else {
+        outcomeEl.textContent = 'No one was ejected. (Skipped)';
+        outcomeEl.className = 'vote-outcome no-eject';
+    }
 }
 
 async function endMeeting() {
@@ -519,6 +1846,30 @@ async function endMeeting() {
 
 function handleMeetingEnd() {
     showScreen('game-screen');
+
+    // Reset kill cooldown timer after meeting for impostor/sheriff/lone wolf
+    if (myRole === 'Impostor' || myRole === 'Sheriff' || myRole === 'Lone Wolf') {
+        startCooldown();
+    }
+
+    // Start meeting cooldown for everyone
+    startMeetingCooldown();
+
+    // Re-show lights sabotage alert if still active (lights persists through meetings)
+    if (activeSabotage && activeSabotage.type === 'lights') {
+        document.getElementById('sabotage-alert').style.display = 'block';
+        // Disable call meeting during sabotage (if not already used)
+        if (!hasUsedMeeting) {
+            document.getElementById('call-meeting-btn').disabled = true;
+        }
+    }
+
+    // Reset sabotage cooldown after meeting for impostors
+    if (myRole === 'Impostor' && settings.enable_sabotage) {
+        sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
+        startSabotageCooldownTimer();
+        updateImpostorSabotageButtons();
+    }
 }
 
 async function markDead() {
@@ -532,9 +1883,48 @@ async function markDead() {
         document.getElementById('im-dead-btn').disabled = true;
         document.getElementById('im-dead-btn').textContent = 'YOU ARE DEAD';
         document.getElementById('call-meeting-btn').disabled = true;
+        document.getElementById('report-body-btn').disabled = true;
     } catch (e) {
         showError('Failed to mark as dead');
     }
+}
+
+async function jesterVotedOut() {
+    if (!confirm('Did you get voted out? This will end the game with a Jester victory!')) return;
+
+    try {
+        await fetch(`/api/players/${playerId}/jester-win?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        document.getElementById('jester-voted-btn').disabled = true;
+        document.getElementById('jester-voted-btn').textContent = 'JESTER WINS!';
+    } catch (e) {
+        showError('Failed to claim victory');
+    }
+}
+
+function handlePlayerDeath(payload) {
+    // Update allPlayers with death status
+    const deadPlayer = allPlayers.find(p => p.id === payload.player_id);
+    if (deadPlayer) {
+        deadPlayer.status = 'dead';
+    }
+
+    // If it's a sheriff shot, show the outcome message
+    if (payload.cause === 'sheriff_shot' && payload.message) {
+        showError(payload.message);  // Using error styling for visibility
+    }
+
+    // Check if the dead player is us
+    if (payload.player_id === playerId) {
+        document.getElementById('im-dead-btn').disabled = true;
+        document.getElementById('im-dead-btn').textContent = 'YOU ARE DEAD';
+        document.getElementById('call-meeting-btn').disabled = true;
+        document.getElementById('report-body-btn').disabled = true;
+    }
+
+    refreshGame();
 }
 
 function handleGameEnd(payload) {
@@ -549,6 +1939,18 @@ function handleGameEnd(payload) {
 
     showScreen('gameover-screen');
 
+    // Play appropriate win sound based on winner
+    const winner = payload.winner.toLowerCase();
+    if (winner === 'crewmate') {
+        playSound('sound-crewmate-win');
+    } else if (winner === 'impostor') {
+        playSound('sound-impostor-win');
+    } else if (winner === 'jester') {
+        playSound('sound-jester-win');
+    } else if (winner === 'lone wolf') {
+        playSound('sound-lonewolf-win');
+    }
+
     // Vibrate
     if (navigator.vibrate) navigator.vibrate([500]);
 }
@@ -556,7 +1958,30 @@ function handleGameEnd(payload) {
 function returnToLobby() {
     localStorage.removeItem('session_token');
     localStorage.removeItem('player_id');
+    // Keep player_name in localStorage for next game
     window.location.href = '/';
+}
+
+async function leaveGame() {
+    if (!confirm('Are you sure you want to leave this game?')) return;
+
+    try {
+        const response = await fetch(`/api/games/${gameCode}/leave?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('player_id');
+            // Keep player_name for next game
+            window.location.href = '/';
+        } else {
+            const data = await response.json();
+            showError(data.detail || 'Failed to leave game');
+        }
+    } catch (e) {
+        showError('Connection error');
+    }
 }
 
 async function refreshGame() {
@@ -564,6 +1989,7 @@ async function refreshGame() {
         const response = await fetch(`/api/games/${gameCode}?session_token=${sessionToken}`);
         const data = await response.json();
 
+        allPlayers = data.players;
         updatePlayers(data.players);
         settings = data.settings;
         availableTasks = data.available_tasks || [];
@@ -627,12 +2053,83 @@ async function removeTask(taskName) {
     }
 }
 
+// Kill Cooldown Timer Functions
+function showCooldownTimer() {
+    const timerSection = document.getElementById('cooldown-timer');
+
+    // Show timer for Impostor, Sheriff, or Lone Wolf
+    if (myRole === 'Impostor' || myRole === 'Sheriff' || myRole === 'Lone Wolf') {
+        timerSection.style.display = 'block';
+    } else {
+        timerSection.style.display = 'none';
+    }
+}
+
+function getCooldownForRole() {
+    // Return role-specific cooldown
+    if (myRole === 'Impostor') {
+        return settings.impostor_kill_cooldown || settings.kill_cooldown || 30;
+    } else if (myRole === 'Sheriff') {
+        return settings.sheriff_shoot_cooldown || settings.kill_cooldown || 30;
+    } else if (myRole === 'Lone Wolf') {
+        return settings.lone_wolf_kill_cooldown || settings.kill_cooldown || 30;
+    }
+    return settings.kill_cooldown || 30;
+}
+
+function startCooldown() {
+    const cooldownSeconds = getCooldownForRole();
+    cooldownEndTime = Date.now() + (cooldownSeconds * 1000);
+
+    document.getElementById('start-cooldown-btn').style.display = 'none';
+    updateCooldownDisplay();
+
+    if (killCooldownTimer) clearInterval(killCooldownTimer);
+    killCooldownTimer = setInterval(updateCooldownDisplay, 100);
+}
+
+function updateCooldownDisplay() {
+    const cooldownText = document.getElementById('cooldown-text');
+    const startBtn = document.getElementById('start-cooldown-btn');
+
+    if (!cooldownEndTime) {
+        cooldownText.textContent = 'Kill Ready';
+        cooldownText.classList.add('ready');
+        startBtn.style.display = 'inline-block';
+        return;
+    }
+
+    const remaining = cooldownEndTime - Date.now();
+
+    if (remaining <= 0) {
+        // Cooldown finished
+        cooldownEndTime = null;
+        clearInterval(killCooldownTimer);
+        killCooldownTimer = null;
+
+        cooldownText.textContent = 'KILL READY!';
+        cooldownText.classList.add('ready');
+        startBtn.style.display = 'inline-block';
+
+        // Vibrate to notify (if enabled)
+        if (settings.vibrate_cooldown && navigator.vibrate) {
+            navigator.vibrate([100, 50, 100, 50, 100]);
+        }
+    } else {
+        // Still on cooldown
+        const seconds = Math.ceil(remaining / 1000);
+        cooldownText.textContent = `Cooldown: ${seconds}s`;
+        cooldownText.classList.remove('ready');
+    }
+}
+
 // Rules Modal Functions
 function showRules() {
     // Update which rules are visible based on settings
     document.getElementById('rule-jester').style.display = settings.enable_jester ? 'block' : 'none';
     document.getElementById('rule-lonewolf').style.display = settings.enable_lone_wolf ? 'block' : 'none';
     document.getElementById('rule-minion').style.display = settings.enable_minion ? 'block' : 'none';
+    document.getElementById('rule-sheriff').style.display = settings.enable_sheriff ? 'block' : 'none';
 
     document.getElementById('rules-modal').style.display = 'flex';
 }
@@ -641,11 +2138,47 @@ function hideRules() {
     document.getElementById('rules-modal').style.display = 'none';
 }
 
+// Map Gallery Functions
+let currentMapIndex = 0;
+
+function showMapGallery() {
+    document.getElementById('map-modal').style.display = 'flex';
+    goToMapSlide(0);
+}
+
+function hideMapGallery() {
+    document.getElementById('map-modal').style.display = 'none';
+}
+
+function goToMapSlide(index) {
+    const slides = document.querySelectorAll('.map-slide');
+    const indicators = document.querySelectorAll('.map-indicator');
+
+    if (index < 0) index = slides.length - 1;
+    if (index >= slides.length) index = 0;
+
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    indicators.forEach((ind, i) => ind.classList.toggle('active', i === index));
+    currentMapIndex = index;
+}
+
+function nextMapSlide() {
+    goToMapSlide(currentMapIndex + 1);
+}
+
+function prevMapSlide() {
+    goToMapSlide(currentMapIndex - 1);
+}
+
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
-    const modal = document.getElementById('rules-modal');
-    if (e.target === modal) {
+    const rulesModal = document.getElementById('rules-modal');
+    const mapModal = document.getElementById('map-modal');
+    if (e.target === rulesModal) {
         hideRules();
+    }
+    if (e.target === mapModal) {
+        hideMapGallery();
     }
 });
 

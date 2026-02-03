@@ -125,6 +125,71 @@ async def update_settings(code: str, request: UpdateSettingsRequest, session_tok
         game.settings.enable_lone_wolf = request.enable_lone_wolf
     if request.enable_minion is not None:
         game.settings.enable_minion = request.enable_minion
+    if request.enable_sheriff is not None:
+        game.settings.enable_sheriff = request.enable_sheriff
+    if request.kill_cooldown is not None:
+        game.settings.kill_cooldown = max(10, min(120, request.kill_cooldown))
+    # Per-character cooldowns
+    if request.impostor_kill_cooldown is not None:
+        game.settings.impostor_kill_cooldown = max(10, min(120, request.impostor_kill_cooldown))
+    if request.sheriff_shoot_cooldown is not None:
+        game.settings.sheriff_shoot_cooldown = max(10, min(120, request.sheriff_shoot_cooldown))
+    if request.lone_wolf_kill_cooldown is not None:
+        game.settings.lone_wolf_kill_cooldown = max(10, min(120, request.lone_wolf_kill_cooldown))
+    if request.enable_impostor_timer is not None:
+        game.settings.enable_impostor_timer = request.enable_impostor_timer
+    if request.enable_sheriff_timer is not None:
+        game.settings.enable_sheriff_timer = request.enable_sheriff_timer
+    if request.enable_lone_wolf_timer is not None:
+        game.settings.enable_lone_wolf_timer = request.enable_lone_wolf_timer
+    if request.vibrate_game_start is not None:
+        game.settings.vibrate_game_start = request.vibrate_game_start
+    if request.vibrate_meeting is not None:
+        game.settings.vibrate_meeting = request.vibrate_meeting
+    if request.vibrate_cooldown is not None:
+        game.settings.vibrate_cooldown = request.vibrate_cooldown
+    # Sabotage settings
+    if request.enable_sabotage is not None:
+        game.settings.enable_sabotage = request.enable_sabotage
+    if request.sabotage_cooldown is not None:
+        game.settings.sabotage_cooldown = max(10, min(120, request.sabotage_cooldown))
+    if request.sabotage_1_enabled is not None:
+        game.settings.sabotage_1_enabled = request.sabotage_1_enabled
+    if request.sabotage_1_name is not None:
+        game.settings.sabotage_1_name = request.sabotage_1_name[:20]
+    if request.sabotage_1_timer is not None:
+        game.settings.sabotage_1_timer = max(0, min(120, request.sabotage_1_timer))
+    if request.sabotage_2_enabled is not None:
+        game.settings.sabotage_2_enabled = request.sabotage_2_enabled
+    if request.sabotage_2_name is not None:
+        game.settings.sabotage_2_name = request.sabotage_2_name[:20]
+    if request.sabotage_2_timer is not None:
+        game.settings.sabotage_2_timer = max(0, min(120, request.sabotage_2_timer))
+    if request.sabotage_3_enabled is not None:
+        game.settings.sabotage_3_enabled = request.sabotage_3_enabled
+    if request.sabotage_3_name is not None:
+        game.settings.sabotage_3_name = request.sabotage_3_name[:20]
+    if request.sabotage_3_timer is not None:
+        game.settings.sabotage_3_timer = max(0, min(120, request.sabotage_3_timer))
+    if request.sabotage_4_enabled is not None:
+        game.settings.sabotage_4_enabled = request.sabotage_4_enabled
+    if request.sabotage_4_name is not None:
+        game.settings.sabotage_4_name = request.sabotage_4_name[:20]
+    if request.sabotage_4_timer is not None:
+        game.settings.sabotage_4_timer = max(0, min(120, request.sabotage_4_timer))
+    # Meeting Timer & Voting settings
+    if request.meeting_timer_duration is not None:
+        game.settings.meeting_timer_duration = max(30, min(300, request.meeting_timer_duration))
+    if request.meeting_warning_time is not None:
+        # Warning time must be less than or equal to timer duration
+        max_warning = game.settings.meeting_timer_duration
+        game.settings.meeting_warning_time = max(0, min(max_warning, request.meeting_warning_time))
+    if request.enable_voting is not None:
+        game.settings.enable_voting = request.enable_voting
+    if request.anonymous_voting is not None:
+        game.settings.anonymous_voting = request.anonymous_voting
+    if request.discussion_time is not None:
+        game.settings.discussion_time = max(0, request.discussion_time)
 
     # Notify players
     await ws_manager.broadcast_to_game(game.code, {
@@ -194,3 +259,52 @@ async def reconnect(session_token: str):
         "is_host": player.is_host,
         "game_state": game.state.value
     }
+
+
+@router.post("/games/{code}/leave")
+async def leave_game(code: str, session_token: str):
+    """Leave a game. If host leaves, transfer host to next player."""
+    game = game_store.get_game(code.upper())
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    player = game.get_player_by_session(session_token)
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found in game")
+
+    # Can only leave during lobby
+    if game.state != GameState.LOBBY:
+        raise HTTPException(status_code=400, detail="Cannot leave after game started")
+
+    player_id = player.id
+    player_name = player.name
+    was_host = player.is_host
+
+    # Remove player from game
+    del game.players[player_id]
+
+    # If host left and there are other players, transfer host
+    new_host_name = None
+    if was_host and game.players:
+        # Get first player (by join order via dict insertion order)
+        new_host = next(iter(game.players.values()))
+        new_host.is_host = True
+        new_host_name = new_host.name
+
+    # If no players left, delete the game
+    if not game.players:
+        game_store.delete_game(code.upper())
+        return {"success": True, "game_deleted": True}
+
+    # Notify remaining players
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "player_left",
+        "payload": {
+            "player_id": player_id,
+            "name": player_name,
+            "was_host": was_host,
+            "new_host": new_host_name
+        }
+    })
+
+    return {"success": True, "game_deleted": False}

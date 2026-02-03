@@ -2,11 +2,12 @@
 
 from fastapi import APIRouter, HTTPException
 from ..database import game_store
-from ..models import GameState, PlayerStatus
+from ..models import GameState, PlayerStatus, Role, ActiveSabotage, MeetingState, Vote, VoteType
+import time
 from ..services.ws_manager import ws_manager
 from ..services.game_logic import (
-    start_game, complete_task, mark_player_dead,
-    check_win_conditions, get_role_info, get_all_roles
+    start_game, complete_task, uncomplete_task, mark_player_dead,
+    check_win_conditions, get_role_info, get_all_roles, sheriff_shoot
 )
 
 router = APIRouter(prefix="/api", tags=["game"])
@@ -117,6 +118,34 @@ async def complete_task_endpoint(task_id: str, session_token: str):
     return {"success": True, "task_percentage": task_percentage}
 
 
+@router.post("/tasks/{task_id}/uncomplete")
+async def uncomplete_task_endpoint(task_id: str, session_token: str):
+    """Mark a task as pending (undo completion)."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Game not in progress")
+
+    if not uncomplete_task(game, player.id, task_id):
+        raise HTTPException(status_code=400, detail="Cannot uncomplete task")
+
+    task_percentage = game.get_task_completion_percentage()
+
+    # Broadcast task progress update
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "task_completed",
+        "payload": {
+            "task_percentage": task_percentage
+        }
+    })
+
+    return {"success": True, "task_percentage": task_percentage}
+
+
 @router.post("/players/{player_id}/die")
 async def mark_dead_endpoint(player_id: str, session_token: str):
     """Mark self as dead."""
@@ -161,9 +190,88 @@ async def mark_dead_endpoint(player_id: str, session_token: str):
     return {"success": True}
 
 
+@router.post("/players/{player_id}/jester-win")
+async def jester_win_endpoint(player_id: str, session_token: str):
+    """Jester claims victory by being voted out."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    # Can only claim for yourself
+    if player.id != player_id:
+        raise HTTPException(status_code=403, detail="Can only claim your own victory")
+
+    # Must be a Jester
+    if player.role != Role.JESTER:
+        raise HTTPException(status_code=403, detail="Only Jester can use this")
+
+    if game.state not in [GameState.PLAYING, GameState.MEETING]:
+        raise HTTPException(status_code=400, detail="Game not in progress")
+
+    # Jester wins!
+    game.state = GameState.ENDED
+    game.winner = "Jester"
+
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "game_ended",
+        "payload": {
+            "winner": "Jester",
+            "roles": get_all_roles(game)
+        }
+    })
+
+    return {"success": True}
+
+
+@router.post("/sheriff/shoot/{target_id}")
+async def sheriff_shoot_endpoint(target_id: str, session_token: str):
+    """Sheriff shoots a target player."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Game not in progress")
+
+    shoot_result = sheriff_shoot(game, player.id, target_id)
+    if not shoot_result["success"]:
+        raise HTTPException(status_code=400, detail=shoot_result.get("error", "Cannot shoot"))
+
+    # Broadcast the death
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "player_died",
+        "payload": {
+            "player_id": shoot_result["dead_player_id"],
+            "name": shoot_result["dead_player_name"],
+            "cause": "sheriff_shot",
+            "outcome": shoot_result["outcome"],
+            "message": shoot_result["message"]
+        }
+    })
+
+    # Check win conditions
+    winner = check_win_conditions(game)
+    if winner:
+        game.state = GameState.ENDED
+        game.winner = winner
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "game_ended",
+            "payload": {
+                "winner": winner,
+                "roles": get_all_roles(game)
+            }
+        })
+
+    return {"success": True, **shoot_result}
+
+
 @router.post("/games/{code}/meeting/start")
-async def start_meeting_endpoint(code: str, session_token: str):
-    """Call a meeting."""
+async def start_meeting_endpoint(code: str, session_token: str, meeting_type: str = "meeting"):
+    """Call a meeting. meeting_type can be 'meeting' or 'body_report'."""
     game = game_store.get_game(code.upper())
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -178,11 +286,40 @@ async def start_meeting_endpoint(code: str, session_token: str):
 
     game.state = GameState.MEETING
 
-    # Broadcast meeting start
+    # Initialize meeting state for voting
+    game.active_meeting = MeetingState(
+        started_at=time.time(),
+        started_by=player.id,
+        started_by_name=player.name,
+        meeting_type=meeting_type,
+        phase="gathering"  # Waiting for caller to start voting
+    )
+
+    # Handle active sabotage during meeting
+    # Reactor and O2 resolve on meeting, Lights persists
+    sabotage_resolved = None
+    if game.active_sabotage is not None:
+        sab = game.active_sabotage
+        if sab.type in ["reactor", "o2"]:
+            # Resolve sabotage
+            sabotage_resolved = {
+                "type": sab.type,
+                "name": sab.name,
+                "reason": "Meeting called"
+            }
+            game.active_sabotage = None
+            # Set cooldown
+            game.sabotage_cooldown_end = time.time() + game.settings.sabotage_cooldown
+        # Lights persists through meetings - don't clear it
+
+    # Broadcast meeting start (gathering phase - waiting for caller to start voting)
     await ws_manager.broadcast_to_game(game.code, {
         "type": "meeting_called",
         "payload": {
             "called_by": player.name,
+            "caller_id": player.id,  # So frontend knows who can start voting
+            "meeting_type": meeting_type,  # "meeting" or "body_report"
+            "phase": "gathering",  # Waiting phase
             "task_percentage": game.get_task_completion_percentage(),
             "alive_players": [
                 {"id": p.id, "name": p.name}
@@ -191,7 +328,64 @@ async def start_meeting_endpoint(code: str, session_token: str):
             "dead_players": [
                 {"id": p.id, "name": p.name}
                 for p in game.get_dead_players()
-            ]
+            ],
+            # Voting settings
+            "enable_voting": game.settings.enable_voting,
+            "anonymous_voting": game.settings.anonymous_voting,
+            "timer_duration": game.settings.meeting_timer_duration,
+            "warning_time": game.settings.meeting_warning_time
+        }
+    })
+
+    # If sabotage was resolved by meeting, broadcast that too
+    if sabotage_resolved:
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "sabotage_resolved",
+            "payload": {
+                "type": sabotage_resolved["type"],
+                "name": sabotage_resolved["name"],
+                "resolved_by": "Meeting",
+                "message": f"{sabotage_resolved['name']} resolved by meeting"
+            }
+        })
+
+    return {"success": True}
+
+
+@router.post("/games/{code}/meeting/start_voting")
+async def start_voting_endpoint(code: str, session_token: str):
+    """Start the voting phase of a meeting. Only the caller can do this."""
+    game = game_store.get_game(code.upper())
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    if game.state != GameState.MEETING or not game.active_meeting:
+        raise HTTPException(status_code=400, detail="No meeting in progress")
+
+    # Verify this is the caller
+    player = game.get_player_by_session(session_token)
+    if not player or player.id != game.active_meeting.started_by:
+        raise HTTPException(status_code=403, detail="Only the meeting caller can start voting")
+
+    if game.active_meeting.phase == "voting":
+        return {"success": True, "already_started": True}
+
+    # Transition to voting phase
+    game.active_meeting.phase = "voting"
+
+    # Broadcast voting started to everyone
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "voting_started",
+        "payload": {
+            "alive_players": [
+                {"id": p.id, "name": p.name}
+                for p in game.get_alive_players()
+            ],
+            "enable_voting": game.settings.enable_voting,
+            "anonymous_voting": game.settings.anonymous_voting,
+            "timer_duration": game.settings.meeting_timer_duration,
+            "warning_time": game.settings.meeting_warning_time,
+            "discussion_time": game.settings.discussion_time
         }
     })
 
@@ -208,6 +402,8 @@ async def end_meeting_endpoint(code: str, session_token: str):
     if game.state != GameState.MEETING:
         raise HTTPException(status_code=400, detail="No meeting in progress")
 
+    # Clear active meeting state
+    game.active_meeting = None
     game.state = GameState.PLAYING
 
     # Broadcast meeting end
@@ -230,6 +426,200 @@ async def end_meeting_endpoint(code: str, session_token: str):
         })
 
     return {"success": True}
+
+
+@router.post("/games/{code}/vote")
+async def cast_vote_endpoint(code: str, session_token: str, target_id: str = None):
+    """Cast a vote during a meeting. target_id=None means skip vote."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if game.state != GameState.MEETING:
+        raise HTTPException(status_code=400, detail="No meeting in progress")
+
+    if not game.active_meeting:
+        raise HTTPException(status_code=400, detail="Meeting state not initialized")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=403, detail="Dead players cannot vote")
+
+    if player.id in game.active_meeting.votes:
+        raise HTTPException(status_code=400, detail="Already voted")
+
+    # Validate target if not skip
+    if target_id:
+        target = game.players.get(target_id)
+        if not target:
+            raise HTTPException(status_code=400, detail="Invalid target")
+        if target.status != PlayerStatus.ALIVE:
+            raise HTTPException(status_code=400, detail="Cannot vote for dead player")
+        # Self-voting is allowed (Jester strategy!)
+
+    # Create vote
+    vote = Vote(
+        voter_id=player.id,
+        target_id=target_id,
+        vote_type=VoteType.PLAYER if target_id else VoteType.SKIP,
+        timestamp=time.time()
+    )
+    game.active_meeting.votes[player.id] = vote
+
+    # Count votes
+    alive_players = game.get_alive_players()
+    votes_cast = len(game.active_meeting.votes)
+    votes_needed = len(alive_players)
+    all_voted = votes_cast >= votes_needed
+
+    # Broadcast vote cast
+    # Debug: log anonymous_voting value and type
+    print(f"DEBUG vote_cast: anonymous_voting={game.settings.anonymous_voting} (type={type(game.settings.anonymous_voting).__name__}), voter={player.name}, target_id={target_id}")
+    print(f"DEBUG: condition 'not anonymous_voting' evaluates to: {not game.settings.anonymous_voting}")
+
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "vote_cast",
+        "payload": {
+            "votes_cast": votes_cast,
+            "votes_needed": votes_needed,
+            "all_voted": all_voted,
+            # Include voter info only if not anonymous
+            "voter_name": player.name if not game.settings.anonymous_voting else None,
+            "target_name": (game.players.get(target_id).name if target_id else "Skip") if not game.settings.anonymous_voting else None
+        }
+    })
+
+    # If all voted, reveal results
+    if all_voted:
+        await reveal_vote_results(game)
+
+    return {"success": True, "votes_cast": votes_cast, "all_voted": all_voted}
+
+
+@router.post("/games/{code}/meeting/timer_expired")
+async def meeting_timer_expired_endpoint(code: str, session_token: str):
+    """Called when meeting timer expires - trigger vote results."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if game.state != GameState.MEETING or not game.active_meeting:
+        raise HTTPException(status_code=400, detail="No meeting in progress")
+
+    if game.active_meeting.voting_ended:
+        return {"success": True, "already_ended": True}
+
+    await reveal_vote_results(game)
+    return {"success": True}
+
+
+async def reveal_vote_results(game):
+    """Calculate and broadcast vote results, then eliminate if needed."""
+    if game.active_meeting.voting_ended:
+        return
+
+    game.active_meeting.voting_ended = True
+
+    # Count votes
+    vote_counts = {}  # player_id -> count
+    skip_count = 0
+
+    for vote in game.active_meeting.votes.values():
+        # TODO: Handle Mayor (2x vote) when implemented
+        weight = 1
+
+        if vote.vote_type == VoteType.SKIP or not vote.target_id:
+            skip_count += weight
+        else:
+            vote_counts[vote.target_id] = vote_counts.get(vote.target_id, 0) + weight
+
+    # Find max votes
+    all_counts = [skip_count] + list(vote_counts.values())
+    max_votes = max(all_counts) if all_counts else 0
+
+    # Determine outcome
+    candidates = [pid for pid, count in vote_counts.items() if count == max_votes]
+    skip_is_max = skip_count == max_votes
+
+    result = {
+        "vote_counts": {
+            game.players[pid].name: count
+            for pid, count in vote_counts.items()
+        },
+        "skip_count": skip_count,
+        "total_votes": len(game.active_meeting.votes)
+    }
+
+    eliminated_player = None
+
+    if len(candidates) == 0 or (len(candidates) == 1 and skip_is_max and skip_count >= vote_counts.get(candidates[0], 0)):
+        # Skip won or no votes for players
+        result["outcome"] = "skip"
+        result["eliminated"] = None
+    elif len(candidates) > 1 or (len(candidates) == 1 and skip_is_max):
+        # Tie between players or player tied with skip
+        result["outcome"] = "tie"
+        result["eliminated"] = None
+    else:
+        # Someone is eliminated
+        eliminated_id = candidates[0]
+        eliminated_player = game.players.get(eliminated_id)
+        result["outcome"] = "elimination"
+        result["eliminated"] = eliminated_id
+        result["eliminated_name"] = eliminated_player.name
+        result["eliminated_role"] = eliminated_player.role.value if eliminated_player.role else None
+
+    game.active_meeting.result = result
+
+    # Broadcast results
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "vote_results",
+        "payload": result
+    })
+
+    # Handle elimination
+    if eliminated_player:
+        eliminated_player.status = PlayerStatus.DEAD
+
+        # Notify everyone that this player died (so their UI updates)
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "player_died",
+            "payload": {
+                "player_id": eliminated_player.id,
+                "name": eliminated_player.name,
+                "cause": "voted_out"
+            }
+        })
+
+        # Check for Jester win
+        if eliminated_player.role == Role.JESTER:
+            game.state = GameState.ENDED
+            game.winner = "Jester"
+            await ws_manager.broadcast_to_game(game.code, {
+                "type": "game_ended",
+                "payload": {
+                    "winner": "Jester",
+                    "reason": f"{eliminated_player.name} was the Jester!",
+                    "roles": get_all_roles(game)
+                }
+            })
+            return
+
+        # Check other win conditions
+        winner = check_win_conditions(game)
+        if winner:
+            game.state = GameState.ENDED
+            game.winner = winner
+            await ws_manager.broadcast_to_game(game.code, {
+                "type": "game_ended",
+                "payload": {
+                    "winner": winner,
+                    "roles": get_all_roles(game)
+                }
+            })
 
 
 @router.get("/players/me")
@@ -261,3 +651,236 @@ async def get_my_info(session_token: str):
         response["all_roles"] = get_all_roles(game)
 
     return response
+
+
+# ==================== SABOTAGE ENDPOINTS ====================
+
+@router.post("/games/{code}/sabotage/start")
+async def start_sabotage_endpoint(code: str, sabotage_index: int, session_token: str):
+    """Start a sabotage (impostor only, alive or dead)."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    # Must be an Impostor (alive or dead can trigger)
+    if player.role != Role.IMPOSTOR:
+        raise HTTPException(status_code=403, detail="Only impostors can sabotage")
+
+    # Game must be in progress (not meeting, not ended)
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Cannot sabotage now")
+
+    # Check sabotage is enabled
+    if not game.settings.enable_sabotage:
+        raise HTTPException(status_code=400, detail="Sabotage is disabled")
+
+    # Check no active sabotage
+    if game.active_sabotage is not None:
+        raise HTTPException(status_code=400, detail="Sabotage already active")
+
+    # Check cooldown
+    if game.sabotage_cooldown_end and time.time() < game.sabotage_cooldown_end:
+        remaining = int(game.sabotage_cooldown_end - time.time())
+        raise HTTPException(status_code=400, detail=f"Sabotage on cooldown ({remaining}s)")
+
+    # Get sabotage settings
+    if sabotage_index < 1 or sabotage_index > 4:
+        raise HTTPException(status_code=400, detail="Invalid sabotage index")
+
+    enabled = getattr(game.settings, f"sabotage_{sabotage_index}_enabled")
+    if not enabled:
+        raise HTTPException(status_code=400, detail="This sabotage is disabled")
+
+    name = getattr(game.settings, f"sabotage_{sabotage_index}_name")
+    sab_type = getattr(game.settings, f"sabotage_{sabotage_index}_type")
+    timer = getattr(game.settings, f"sabotage_{sabotage_index}_timer")
+
+    # Create active sabotage
+    game.active_sabotage = ActiveSabotage(
+        index=sabotage_index,
+        type=sab_type,
+        name=name,
+        timer=timer,
+        started_at=time.time(),
+        started_by=player.id
+    )
+
+    # Broadcast sabotage started
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "sabotage_started",
+        "payload": {
+            "index": sabotage_index,
+            "type": sab_type,
+            "name": name,
+            "timer": timer,
+            "started_by": player.name
+        }
+    })
+
+    return {"success": True, "sabotage": name}
+
+
+@router.post("/games/{code}/sabotage/fix")
+async def fix_sabotage_endpoint(code: str, session_token: str, action: str = "tap"):
+    """Fix sabotage. action: 'tap' for lights/o2, 'hold_start'/'hold_end' for reactor."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    # Must be alive to fix
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="Dead players cannot fix sabotage")
+
+    # Must have active sabotage
+    if game.active_sabotage is None:
+        raise HTTPException(status_code=400, detail="No active sabotage")
+
+    sab = game.active_sabotage
+    resolved = False
+    message = ""
+
+    if sab.type == "lights":
+        # Lights: 1 tap to fix
+        resolved = True
+        message = f"{player.name} fixed the lights!"
+
+    elif sab.type == "reactor":
+        # Reactor: 2 people must hold simultaneously
+        if action == "hold_start":
+            if player.id not in sab.reactor_holders:
+                sab.reactor_holders.append(player.id)
+            # Check if 2 people holding
+            if len(sab.reactor_holders) >= 2:
+                resolved = True
+                message = "Reactor meltdown averted!"
+            else:
+                # Notify others someone is holding
+                await ws_manager.broadcast_to_game(game.code, {
+                    "type": "sabotage_update",
+                    "payload": {
+                        "type": "reactor",
+                        "holders": len(sab.reactor_holders),
+                        "holder_name": player.name
+                    }
+                })
+                return {"success": True, "holding": True, "holders": len(sab.reactor_holders)}
+        elif action == "hold_end":
+            if player.id in sab.reactor_holders:
+                sab.reactor_holders.remove(player.id)
+            await ws_manager.broadcast_to_game(game.code, {
+                "type": "sabotage_update",
+                "payload": {
+                    "type": "reactor",
+                    "holders": len(sab.reactor_holders)
+                }
+            })
+            return {"success": True, "holding": False, "holders": len(sab.reactor_holders)}
+
+    elif sab.type == "o2":
+        # O2: 2 switches total
+        sab.o2_switches += 1
+        if sab.o2_switches >= 2:
+            resolved = True
+            message = "O2 restored!"
+        else:
+            # Notify progress
+            await ws_manager.broadcast_to_game(game.code, {
+                "type": "sabotage_update",
+                "payload": {
+                    "type": "o2",
+                    "switches": sab.o2_switches,
+                    "fixer_name": player.name
+                }
+            })
+            return {"success": True, "switches": sab.o2_switches}
+
+    if resolved:
+        game.active_sabotage = None
+        # Set cooldown
+        game.sabotage_cooldown_end = time.time() + game.settings.sabotage_cooldown
+
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "sabotage_resolved",
+            "payload": {
+                "type": sab.type,
+                "name": sab.name,
+                "resolved_by": player.name,
+                "message": message
+            }
+        })
+
+    return {"success": True, "resolved": resolved}
+
+
+@router.post("/games/{code}/sabotage/check_timeout")
+async def check_sabotage_timeout_endpoint(code: str, session_token: str):
+    """Check if sabotage timer expired (called by clients periodically)."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if game.active_sabotage is None:
+        return {"success": True, "expired": False}
+
+    sab = game.active_sabotage
+
+    # Check if timer expired
+    if sab.timer > 0:
+        elapsed = time.time() - sab.started_at
+        if elapsed >= sab.timer:
+            # Impostor wins!
+            game.state = GameState.ENDED
+            game.winner = "Impostor"
+            game.active_sabotage = None
+
+            await ws_manager.broadcast_to_game(game.code, {
+                "type": "game_ended",
+                "payload": {
+                    "winner": "Impostor",
+                    "reason": f"{sab.name} was not fixed in time!",
+                    "roles": get_all_roles(game)
+                }
+            })
+
+            return {"success": True, "expired": True, "winner": "Impostor"}
+
+    return {"success": True, "expired": False}
+
+
+@router.get("/games/{code}/sabotage/status")
+async def get_sabotage_status_endpoint(code: str, session_token: str):
+    """Get current sabotage status."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if game.active_sabotage is None:
+        cooldown_remaining = 0
+        if game.sabotage_cooldown_end:
+            cooldown_remaining = max(0, int(game.sabotage_cooldown_end - time.time()))
+        return {
+            "active": False,
+            "cooldown_remaining": cooldown_remaining
+        }
+
+    sab = game.active_sabotage
+    elapsed = time.time() - sab.started_at
+    remaining = max(0, sab.timer - elapsed) if sab.timer > 0 else 0
+
+    return {
+        "active": True,
+        "type": sab.type,
+        "name": sab.name,
+        "timer": sab.timer,
+        "remaining": int(remaining),
+        "reactor_holders": len(sab.reactor_holders) if sab.type == "reactor" else 0,
+        "o2_switches": sab.o2_switches if sab.type == "o2" else 0
+    }

@@ -44,6 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const joinBtn = document.getElementById('join-game-btn');
     const errorEl = document.getElementById('error-message');
 
+    // Pre-fill player name from localStorage
+    const savedName = localStorage.getItem('player_name');
+    if (savedName) {
+        playerNameInput.value = savedName;
+    }
+
     // Check for existing session
     const existingSession = localStorage.getItem('session_token');
     if (existingSession) {
@@ -88,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 localStorage.setItem('session_token', data.session_token);
                 localStorage.setItem('player_id', data.player_id);
+                localStorage.setItem('player_name', name);
                 window.location.href = '/game/' + data.code;
             } else {
                 showError(data.detail || 'Failed to create game');
@@ -127,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 localStorage.setItem('session_token', data.session_token);
                 localStorage.setItem('player_id', data.player_id);
+                localStorage.setItem('player_name', name);
                 window.location.href = '/game/' + data.code;
             } else {
                 showError(data.detail || 'Failed to join game');

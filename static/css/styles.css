@@ -16,6 +16,7 @@
     --jester: #a855f7;
     --lone-wolf: #f97316;
     --minion: #eab308;
+    --sheriff: #3b82f6;
 }
 
 * {
@@ -24,31 +25,30 @@
     padding: 0;
 }
 
-html, body {
+html {
     height: 100%;
+}
+
+body {
+    min-height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     overflow-x: hidden;
-}
-
-body {
-    display: flex;
-    flex-direction: column;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
 }
 
 #app {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    min-height: 100%;
 }
 
 .container {
     max-width: 480px;
     margin: 0 auto;
     padding: 20px;
+    padding-bottom: 60px;
     width: 100%;
-    min-height: 100vh;
 }
 
 /* Buttons */
@@ -101,6 +101,39 @@ body {
     color: white;
 }
 
+.btn-jester {
+    background: var(--jester);
+    color: white;
+}
+
+.btn-danger-outline {
+    background: transparent;
+    color: var(--danger);
+    border: 2px solid var(--danger);
+}
+
+.btn-danger-outline:hover {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-warning-outline {
+    background: transparent;
+    color: var(--warning);
+    border: 2px solid var(--warning);
+}
+
+.btn-warning-outline:hover:not(:disabled) {
+    background: var(--warning);
+    color: black;
+}
+
+.btn-warning-outline:disabled {
+    opacity: 0.5;
+    color: var(--text-secondary);
+    border-color: var(--text-secondary);
+}
+
 .btn-large {
     width: 100%;
     padding: 16px;
@@ -115,6 +148,22 @@ body {
     color: white;
     border: 1px solid var(--text-secondary);
     border-radius: 4px;
+    touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+}
+
+/* Number controls - prevent zoom and keep "s" close to number */
+.number-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.timer-value {
+    min-width: 50px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Home Screen */
@@ -288,6 +337,7 @@ body {
 .host-controls {
     background: var(--bg-secondary);
     padding: 20px;
+    padding-bottom: 24px;
     border-radius: 12px;
     margin-bottom: 24px;
 }
@@ -360,6 +410,35 @@ body {
     font-size: 18px;
 }
 
+/* Role Badge (compact at top) */
+.role-badge {
+    text-align: center;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    background: var(--bg-secondary);
+}
+
+.role-badge .role-name-small {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.role-badge.role-crewmate .role-name-small { color: var(--crewmate); }
+.role-badge.role-impostor .role-name-small { color: var(--impostor); }
+.role-badge.role-jester .role-name-small { color: var(--jester); }
+.role-badge.role-lone-wolf .role-name-small { color: var(--lone-wolf); }
+.role-badge.role-minion .role-name-small { color: var(--minion); }
+.role-badge.role-sheriff .role-name-small { color: var(--sheriff); }
+
+/* Role Info Section (below tasks) */
+.role-info-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 /* Role Display */
 .role-display {
     text-align: center;
@@ -394,6 +473,7 @@ body {
 .role-jester .role-name { color: var(--jester); }
 .role-lone-wolf .role-name { color: var(--lone-wolf); }
 .role-minion .role-name { color: var(--minion); }
+.role-sheriff .role-name { color: var(--sheriff); }
 
 .fellow-impostors {
     background: rgba(239, 68, 68, 0.2);
@@ -508,6 +588,38 @@ body {
     gap: 12px;
 }
 
+/* Scroll hint - appears right below buttons */
+.scroll-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    animation: pulse 2s ease-in-out infinite;
+    margin-top: 30px;
+}
+
+/* Scroll Spacer - pushes role info below the fold */
+.scroll-spacer {
+    height: 70vh;
+}
+
+.scroll-hint .scroll-arrow {
+    font-size: 24px;
+}
+
+.scroll-hint .scroll-text {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+}
+
 /* Meeting Screen */
 .meeting-header {
     text-align: center;
@@ -529,6 +641,23 @@ body {
     font-size: 14px;
 }
 
+/* Body Report styling - red header like Report Body button */
+.meeting-header.body-report {
+    background: var(--danger);
+    color: white;
+}
+
+.meeting-header.body-report h1 {
+    font-size: 28px;
+    letter-spacing: 0.05em;
+}
+
+.meeting-header.body-report p {
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 12px;
+}
+
 .meeting-players {
     margin-bottom: 24px;
 }
@@ -543,6 +672,261 @@ body {
     font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 8px;
+}
+
+/* Meeting Timer */
+.meeting-timer {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.timer-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 4px solid var(--success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.3s, background-color 0.3s;
+}
+
+.timer-circle.warning {
+    border-color: var(--warning);
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.timer-circle.critical {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.2);
+    animation: pulse-critical 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse-critical {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+#meeting-timer-display {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Voting Section */
+.voting-section {
+    margin-bottom: 24px;
+}
+
+.voting-section h3 {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.voting-section h3.discussion-countdown {
+    font-size: 24px;
+    color: var(--warning);
+    font-weight: 700;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    animation: pulse 1s infinite;
+}
+
+.vote-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.vote-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: var(--bg-card);
+    color: white;
+    border: 2px solid var(--text-secondary);
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.vote-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.1);
+}
+
+.vote-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vote-btn.voted {
+    border-color: var(--success);
+    background: rgba(74, 222, 128, 0.2);
+}
+
+.vote-btn.voted::after {
+    content: ' ✓';
+}
+
+#skip-vote-btn {
+    margin-top: 8px;
+}
+
+#skip-vote-btn.voted {
+    background: var(--bg-card);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+/* Dead player voting message */
+.dead-voter-message {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 18px;
+    font-weight: 600;
+    border: 2px dashed var(--danger);
+}
+
+.vote-status {
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 8px;
+}
+
+/* Gathering phase (waiting for caller to start voting) */
+#gathering-section {
+    text-align: center;
+    padding: 24px;
+    margin: 20px 0;
+}
+
+.gathering-message {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: 12px;
+}
+
+.gathering-message span {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+#start-meeting-btn {
+    font-size: 20px;
+    padding: 16px 32px;
+    background: var(--success);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Vote feed for non-anonymous voting */
+.vote-feed {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.vote-feed-entry {
+    padding: 6px 12px;
+    margin-bottom: 4px;
+    background: var(--bg-screen);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.vote-feed-entry:last-child {
+    margin-bottom: 0;
+}
+
+/* Vote Results */
+.vote-results {
+    margin-bottom: 24px;
+}
+
+.vote-results h3 {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+#vote-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.vote-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 2px solid transparent;
+}
+
+.vote-result-item.eliminated {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.vote-result-item.skip {
+    opacity: 0.7;
+}
+
+.vote-result-name {
+    font-weight: 600;
+}
+
+.vote-result-count {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.vote-outcome {
+    text-align: center;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.vote-outcome.ejected {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.vote-outcome.no-eject {
+    background: var(--bg-card);
+    color: var(--text-secondary);
 }
 
 /* Game Over Screen */
@@ -600,6 +984,7 @@ body {
 .player-role.role-jester { background: rgba(168, 85, 247, 0.2); color: var(--jester); }
 .player-role.role-lone-wolf { background: rgba(249, 115, 22, 0.2); color: var(--lone-wolf); }
 .player-role.role-minion { background: rgba(234, 179, 8, 0.2); color: var(--minion); }
+.player-role.role-sheriff { background: rgba(59, 130, 246, 0.2); color: var(--sheriff); }
 
 /* Error Message */
 .error-message {
@@ -725,10 +1110,15 @@ body {
     color: var(--accent-hover);
 }
 
-/* Rules Button */
-.rules-btn {
+/* Lobby Actions (Rules + Leave buttons) */
+.lobby-actions {
+    display: flex;
+    gap: 12px;
     margin-top: 16px;
-    width: 100%;
+}
+
+.lobby-actions .btn {
+    flex: 1;
 }
 
 /* Modal */
@@ -804,6 +1194,170 @@ body {
 .rule-section h3.role-jester { color: var(--jester); }
 .rule-section h3.role-lone-wolf { color: var(--lone-wolf); }
 .rule-section h3.role-minion { color: var(--minion); }
+.rule-section h3.role-sheriff { color: var(--sheriff); }
+
+/* Sheriff Shoot Section */
+.sheriff-shoot-section {
+    background: var(--bg-secondary);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 2px solid var(--sheriff);
+}
+
+.sheriff-shoot-section h3 {
+    color: var(--sheriff);
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.sheriff-warning {
+    color: var(--danger);
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.shoot-targets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shoot-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 2px solid var(--sheriff);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.shoot-btn:hover {
+    background: var(--sheriff);
+    color: white;
+}
+
+.no-targets {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 8px;
+}
+
+/* Kill Cooldown Timer */
+.cooldown-timer {
+    background: var(--bg-secondary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border: 2px solid var(--danger);
+}
+
+.cooldown-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+#cooldown-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--danger);
+}
+
+#cooldown-text.ready {
+    color: var(--success);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.start-cooldown-btn {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+/* Cooldown Settings - Per Character */
+.cooldown-settings {
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.cooldown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cooldown-row:last-child {
+    border-bottom: none;
+}
+
+.cooldown-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cooldown-label span:first-child {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.toggle-small {
+    font-size: 11px;
+}
+
+.toggle-small span {
+    font-size: 11px;
+}
+
+.cooldown-settings .setting {
+    margin-bottom: 12px;
+}
+
+.timer-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Vibration Settings */
+.vibration-settings {
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.vibration-settings h4 {
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.vibration-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 
 .rule-section p {
     color: var(--text-secondary);
@@ -820,4 +1374,282 @@ body {
 
 .rule-section ul li {
     margin-bottom: 4px;
+}
+
+/* Map Gallery Modal */
+.map-modal-content {
+    max-width: 95vw;
+    max-height: 90vh;
+    width: 100%;
+}
+
+.map-gallery {
+    position: relative;
+    touch-action: pan-y pinch-zoom;
+}
+
+.map-swiper {
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-primary);
+    border-radius: 8px;
+}
+
+.map-slide {
+    display: none;
+    width: 100%;
+    text-align: center;
+}
+
+.map-slide.active {
+    display: block;
+}
+
+.map-slide img {
+    width: 100%;
+    height: auto;
+    max-height: 60vh;
+    object-fit: contain;
+    touch-action: pinch-zoom;
+}
+
+.map-label {
+    padding: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.map-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.map-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.map-indicator.active {
+    background: var(--accent);
+    transform: scale(1.2);
+}
+
+.map-nav {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 16px;
+}
+
+.map-nav-btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.map-nav-btn:hover {
+    background: var(--bg-hover);
+}
+
+/* ==================== SABOTAGE STYLES ==================== */
+
+/* Sabotage Settings in Lobby */
+.sabotage-settings {
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.sabotage-settings .section-header {
+    padding: 0;
+    margin-bottom: 12px;
+}
+
+.sabotage-settings h4 {
+    color: var(--impostor);
+}
+
+#sabotage-config {
+    margin-top: 12px;
+}
+
+.sabotage-list {
+    margin-top: 12px;
+}
+
+.sabotage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sabotage-item:last-child {
+    border-bottom: none;
+}
+
+.sab-type {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* Meeting & Voting Settings */
+.meeting-voting-settings {
+    background: var(--bg-card);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.meeting-voting-settings .section-header {
+    padding: 0;
+    margin-bottom: 12px;
+}
+
+.meeting-voting-settings h4 {
+    color: var(--warning);
+}
+
+#voting-config {
+    margin-top: 12px;
+}
+
+#voting-config .setting {
+    margin-top: 12px;
+}
+
+/* Sabotage Alert Banner */
+.sabotage-alert {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.9) 100%);
+    padding: 20px;
+    text-align: center;
+    z-index: 2000;
+    animation: sabotage-pulse 1s ease-in-out infinite;
+}
+
+.sabotage-alert-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.sabotage-alert .sabotage-name {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.sabotage-alert .sabotage-timer {
+    font-size: 56px;
+    font-weight: 900;
+    color: white;
+    margin: 8px 0;
+    animation: timer-pulse 0.5s ease-in-out infinite;
+}
+
+.sabotage-fix-info {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 8px 0;
+}
+
+.sabotage-alert .btn {
+    margin-top: 12px;
+}
+
+@keyframes sabotage-pulse {
+    0%, 100% { opacity: 0.95; }
+    50% { opacity: 1; }
+}
+
+@keyframes timer-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Sabotage Section for Impostors */
+.sabotage-section {
+    background: var(--bg-secondary);
+    padding: 16px;
+    border-radius: 12px;
+    margin: 16px 0;
+    border: 2px solid var(--impostor);
+}
+
+.sabotage-section h3 {
+    color: var(--impostor);
+    font-size: 16px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sabotage-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.sabotage-btn {
+    padding: 14px 10px;
+    background: var(--bg-card);
+    border: 2px solid var(--impostor);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sabotage-btn:hover:not(:disabled) {
+    background: var(--impostor);
+    color: white;
+}
+
+.sabotage-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--text-secondary);
+}
+
+.sabotage-btn.on-cooldown {
+    border-color: var(--text-secondary);
+}
+
+.sabotage-cooldown {
+    text-align: center;
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Success button for fix */
+.btn-success {
+    background: var(--success);
+    color: black;
+    font-weight: 700;
 }

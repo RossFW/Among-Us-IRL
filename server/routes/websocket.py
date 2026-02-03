@@ -1,5 +1,6 @@
 """WebSocket route for real-time game updates."""
 
+import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from ..database import game_store
 from ..services.ws_manager import ws_manager
@@ -55,6 +56,20 @@ async def websocket_endpoint(websocket: WebSocket, game_code: str, session_token
     # Add winner if game ended
     if game.winner:
         state_payload["payload"]["winner"] = game.winner
+
+    # Add active sabotage if any
+    if game.active_sabotage:
+        sab = game.active_sabotage
+        elapsed = time.time() - sab.started_at
+        remaining = max(0, sab.timer - elapsed) if sab.timer > 0 else 0
+        state_payload["payload"]["active_sabotage"] = {
+            "index": sab.index,
+            "type": sab.type,
+            "name": sab.name,
+            "timer": int(remaining),
+            "reactor_holders": len(sab.reactor_holders),
+            "o2_switches": sab.o2_switches
+        }
 
     await websocket.send_json(state_payload)
 

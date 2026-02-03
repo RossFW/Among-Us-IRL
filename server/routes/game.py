@@ -373,6 +373,14 @@ async def start_voting_endpoint(code: str, session_token: str):
     # Transition to voting phase
     game.active_meeting.phase = "voting"
 
+    # Set server-side timestamps for validation
+    now = time.time()
+    discussion_time = game.settings.discussion_time or 0
+    timer_duration = game.settings.meeting_timer_duration or 120
+
+    game.active_meeting.discussion_end_time = now + discussion_time
+    game.active_meeting.voting_end_time = now + timer_duration
+
     # Broadcast voting started to everyone
     await ws_manager.broadcast_to_game(game.code, {
         "type": "voting_started",
@@ -442,6 +450,14 @@ async def cast_vote_endpoint(code: str, session_token: str, target_id: str = Non
 
     if not game.active_meeting:
         raise HTTPException(status_code=400, detail="Meeting state not initialized")
+
+    # Phase validation - must be in voting phase
+    if game.active_meeting.phase != "voting":
+        raise HTTPException(status_code=400, detail="Voting has not started yet")
+
+    # Discussion time validation - must be over
+    if game.active_meeting.discussion_end_time and time.time() < game.active_meeting.discussion_end_time:
+        raise HTTPException(status_code=400, detail="Discussion time is not over yet")
 
     if player.status != PlayerStatus.ALIVE:
         raise HTTPException(status_code=403, detail="Dead players cannot vote")
@@ -571,6 +587,32 @@ async def reveal_vote_results(game):
         result["eliminated"] = eliminated_id
         result["eliminated_name"] = eliminated_player.name
         result["eliminated_role"] = eliminated_player.role.value if eliminated_player.role else None
+
+    # Add individual votes if non-anonymous voting
+    # Debug logging
+    print(f"DEBUG vote_results: anonymous_voting={game.settings.anonymous_voting}")
+
+    if not game.settings.anonymous_voting:
+        # Group voters by target for cleaner display
+        votes_by_target = {}  # target_name -> list of voter names
+        for vote in game.active_meeting.votes.values():
+            target_name = game.players[vote.target_id].name if vote.target_id else "Skip"
+            voter_name = game.players[vote.voter_id].name
+            if target_name not in votes_by_target:
+                votes_by_target[target_name] = []
+            votes_by_target[target_name].append(voter_name)
+
+        result["votes_by_target"] = votes_by_target
+        print(f"DEBUG votes_by_target: {votes_by_target}")
+
+        # Also keep flat list for backwards compatibility
+        result["individual_votes"] = [
+            {
+                "voter_name": game.players[vote.voter_id].name,
+                "target_name": game.players[vote.target_id].name if vote.target_id else "Skip"
+            }
+            for vote in game.active_meeting.votes.values()
+        ]
 
     game.active_meeting.result = result
 

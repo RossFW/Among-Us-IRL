@@ -71,6 +71,27 @@ async def websocket_endpoint(websocket: WebSocket, game_code: str, session_token
             "o2_switches": sab.o2_switches
         }
 
+    # Add active meeting state for reconnection
+    if game.active_meeting:
+        meeting = game.active_meeting
+        now = time.time()
+        state_payload["payload"]["active_meeting"] = {
+            "phase": meeting.phase,
+            "meeting_type": meeting.meeting_type,
+            "caller_id": meeting.started_by,
+            "caller_name": meeting.started_by_name,
+            "has_voted": player.id in meeting.votes,
+            "votes_cast": len(meeting.votes),
+            "votes_needed": len(game.get_alive_players()),
+            "discussion_ends_at": meeting.discussion_end_time,
+            "voting_ends_at": meeting.voting_end_time,
+            "discussion_remaining": max(0, meeting.discussion_end_time - now) if meeting.discussion_end_time else 0,
+            "voting_remaining": max(0, meeting.voting_end_time - now) if meeting.voting_end_time else 0,
+            "alive_players": [{"id": p.id, "name": p.name} for p in game.get_alive_players()],
+            "dead_players": [{"id": p.id, "name": p.name} for p in game.get_dead_players()],
+            "result": meeting.result
+        }
+
     await websocket.send_json(state_payload)
 
     # Notify others that player connected

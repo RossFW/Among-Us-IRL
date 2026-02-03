@@ -176,10 +176,13 @@ class MeetingState(BaseModel):
     started_by: str  # player_id who called meeting
     started_by_name: str = ""  # caller name for display
     meeting_type: str = "meeting"  # "meeting" or "body_report"
-    phase: str = "gathering"  # "gathering" (waiting) or "voting" (active voting)
+    phase: str = "gathering"  # "gathering", "voting", or "results"
     votes: dict[str, Vote] = Field(default_factory=dict)  # voter_id -> Vote
     voting_ended: bool = False
     result: Optional[dict] = None  # Stores vote counts and outcome
+    # Timestamps for server-side validation
+    discussion_end_time: Optional[float] = None  # When discussion period ends
+    voting_end_time: Optional[float] = None      # When voting timer expires
 
 
 class GameModel(BaseModel):

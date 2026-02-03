@@ -562,15 +562,230 @@ let cooldownEndTime = null;
 let availableTasks = [];
 let allPlayers = [];
 
-// Voting state
+// Meeting state - consolidated into single object for clean state management
+let meetingState = {
+    phase: null,           // null, 'gathering', 'voting', 'results'
+    callerId: null,
+    callerName: null,
+    meetingType: null,     // 'meeting' or 'body_report'
+    hasVoted: false,
+    warningPlayed: false,
+    votingEnabled: false,
+    payload: null,         // Full payload for reference
+    discussionEndsAt: null,
+    votingEndsAt: null
+};
+
+// Timer intervals (kept separate for easy cleanup)
 let meetingTimerInterval = null;
+let discussionTimerInterval = null;
+
+function resetMeetingState() {
+    meetingState = {
+        phase: null,
+        callerId: null,
+        callerName: null,
+        meetingType: null,
+        hasVoted: false,
+        warningPlayed: false,
+        votingEnabled: false,
+        payload: null,
+        discussionEndsAt: null,
+        votingEndsAt: null
+    };
+    // Clear all meeting-related timers
+    if (meetingTimerInterval) {
+        clearInterval(meetingTimerInterval);
+        meetingTimerInterval = null;
+    }
+    if (discussionTimerInterval) {
+        clearInterval(discussionTimerInterval);
+        discussionTimerInterval = null;
+    }
+}
+
+function renderMeetingPhase() {
+    // Central function to render UI based on meeting phase
+    const gathering = document.getElementById('gathering-section');
+    const voting = document.getElementById('voting-section');
+    const results = document.getElementById('vote-results-section');
+    const timer = document.getElementById('meeting-timer');
+    const endBtn = document.getElementById('end-meeting-btn');
+    const playersSection = document.getElementById('meeting-players-section');
+
+    // Hide all meeting sections first
+    gathering.style.display = 'none';
+    voting.style.display = 'none';
+    results.style.display = 'none';
+    timer.style.display = 'none';
+    endBtn.style.display = 'none';
+    playersSection.style.display = 'none';
+
+    if (!meetingState.votingEnabled) {
+        // Voting disabled - just show player lists
+        playersSection.style.display = 'block';
+        return;
+    }
+
+    switch (meetingState.phase) {
+        case 'gathering':
+            gathering.style.display = 'block';
+            // Show START MEETING only for caller
+            const isCaller = playerId === meetingState.callerId;
+            document.getElementById('start-meeting-btn').style.display = isCaller ? 'block' : 'none';
+            document.getElementById('gathering-message').style.display = isCaller ? 'none' : 'block';
+            break;
+
+        case 'voting':
+            voting.style.display = 'block';
+            timer.style.display = 'block';
+            // END MEETING hidden during voting - only show after results
+            break;
+
+        case 'results':
+            results.style.display = 'block';
+            endBtn.style.display = 'block';
+            break;
+    }
+}
+
+function restoreMeetingState(activeMeeting) {
+    // Restore meeting state after reconnection
+    resetMeetingState();
+
+    meetingState.phase = activeMeeting.phase;
+    meetingState.callerId = activeMeeting.caller_id;
+    meetingState.callerName = activeMeeting.caller_name;
+    meetingState.meetingType = activeMeeting.meeting_type;
+    meetingState.hasVoted = activeMeeting.has_voted;
+    meetingState.votingEnabled = true;  // If we're in meeting, voting is enabled
+    meetingState.payload = {
+        alive_players: activeMeeting.alive_players,
+        dead_players: activeMeeting.dead_players
+    };
+
+    // Setup meeting header
+    const meetingHeader = document.getElementById('meeting-header');
+    const meetingTitle = document.getElementById('meeting-title');
+    const meetingCaller = document.getElementById('meeting-caller');
+
+    if (activeMeeting.meeting_type === 'body_report') {
+        meetingHeader.classList.add('body-report');
+        meetingTitle.textContent = 'DEAD BODY REPORTED';
+    } else {
+        meetingHeader.classList.remove('body-report');
+        meetingTitle.textContent = 'EMERGENCY MEETING';
+    }
+
+    // Show caller name if past gathering phase
+    if (activeMeeting.phase !== 'gathering') {
+        meetingCaller.textContent = activeMeeting.meeting_type === 'body_report'
+            ? `Reported by ${activeMeeting.caller_name}`
+            : `Called by ${activeMeeting.caller_name}`;
+    } else {
+        meetingCaller.textContent = '';
+    }
+
+    // Populate player lists
+    document.getElementById('alive-list').innerHTML = activeMeeting.alive_players.map(p => `
+        <div class="player-item">${p.name}</div>
+    `).join('');
+
+    document.getElementById('dead-list').innerHTML = activeMeeting.dead_players.map(p => `
+        <div class="player-item dead">${p.name}</div>
+    `).join('');
+
+    // Reset vote feed
+    const voteFeed = document.getElementById('vote-feed');
+    voteFeed.innerHTML = '';
+    voteFeed.style.display = 'none';
+
+    // Setup phase-specific UI
+    if (activeMeeting.phase === 'voting') {
+        // Restore voting UI
+        const votingSection = document.getElementById('voting-section');
+        const voteOptions = document.getElementById('vote-options');
+        const skipBtn = document.getElementById('skip-vote-btn');
+
+        const me = allPlayers.find(p => p.id === playerId);
+        const amAlive = me && me.status !== 'dead';
+        const inDeadList = activeMeeting.dead_players.some(p => p.id === playerId);
+        const canVote = amAlive && !inDeadList;
+
+        if (canVote && !activeMeeting.has_voted) {
+            voteOptions.innerHTML = activeMeeting.alive_players
+                .map(p => `
+                    <button class="btn vote-btn" onclick="castVote('${p.id}')">
+                        ${p.name}
+                    </button>
+                `).join('');
+            skipBtn.style.display = 'block';
+            skipBtn.disabled = false;
+        } else if (activeMeeting.has_voted) {
+            voteOptions.innerHTML = '<div class="dead-voter-message">You have already voted.</div>';
+            skipBtn.style.display = 'none';
+        } else {
+            voteOptions.innerHTML = '<div class="dead-voter-message">You are dead. You cannot vote.</div>';
+            skipBtn.style.display = 'none';
+        }
+
+        // Update vote counts
+        document.getElementById('votes-cast-count').textContent = activeMeeting.votes_cast;
+        document.getElementById('votes-needed-count').textContent = activeMeeting.votes_needed;
+
+        // Start timer from remaining time
+        if (activeMeeting.voting_remaining > 0) {
+            meetingEndTime = Date.now() + (activeMeeting.voting_remaining * 1000);
+            startMeetingTimer(activeMeeting.voting_remaining, settings.meeting_warning_time || 30);
+        }
+    } else if (activeMeeting.phase === 'results' && activeMeeting.result) {
+        // Show results
+        const resultsList = document.getElementById('vote-results-list');
+        let resultsHtml = '';
+
+        const sortedResults = Object.entries(activeMeeting.result.vote_counts || {})
+            .sort((a, b) => b[1] - a[1]);
+
+        for (const [name, count] of sortedResults) {
+            const isEliminated = activeMeeting.result.eliminated_name === name;
+            resultsHtml += `
+                <div class="vote-result-item ${isEliminated ? 'eliminated' : ''}">
+                    <span class="vote-result-name">${name}</span>
+                    <span class="vote-result-count">${count} vote${count !== 1 ? 's' : ''}</span>
+                </div>
+            `;
+        }
+
+        if (activeMeeting.result.skip_count > 0) {
+            resultsHtml += `
+                <div class="vote-result-item skip">
+                    <span class="vote-result-name">Skip</span>
+                    <span class="vote-result-count">${activeMeeting.result.skip_count} vote${activeMeeting.result.skip_count !== 1 ? 's' : ''}</span>
+                </div>
+            `;
+        }
+
+        resultsList.innerHTML = resultsHtml;
+
+        // Show outcome
+        const outcomeEl = document.getElementById('vote-outcome');
+        if (activeMeeting.result.outcome === 'eliminated') {
+            outcomeEl.innerHTML = `<span class="eliminated-name">${activeMeeting.result.eliminated_name}</span> was ejected.`;
+        } else if (activeMeeting.result.outcome === 'tie') {
+            outcomeEl.textContent = 'Tie vote - no one was ejected.';
+        } else {
+            outcomeEl.textContent = 'No one was ejected.';
+        }
+    }
+
+    // Render phase UI
+    renderMeetingPhase();
+    showScreen('meeting-screen');
+}
+
+// Legacy compatibility (will be removed after full refactor)
+// These getters allow old code to work during transition
 let meetingEndTime = null;
-let hasVoted = false;
-let warningPlayed = false;
-let votingEnabled = false;
-let meetingCallerId = null;
-let meetingCallerName = null;
-let meetingPayload = null;  // Store meeting payload for when voting starts
 
 // Sound helper function
 function playSound(soundId) {
@@ -701,7 +916,12 @@ function handleStateSync(payload) {
             }
         }
     } else if (payload.game_state === 'meeting') {
-        showScreen('meeting-screen');
+        // Restore meeting state on reconnect
+        if (payload.active_meeting) {
+            restoreMeetingState(payload.active_meeting);
+        } else {
+            showScreen('meeting-screen');
+        }
     } else if (payload.game_state === 'ended') {
         showScreen('gameover-screen');
     }
@@ -1426,14 +1646,21 @@ async function reportBody() {
 }
 
 function handleMeetingStart(payload) {
+    // ALWAYS reset meeting state first - clean slate!
+    resetMeetingState();
+
+    // Update consolidated meeting state
+    meetingState.phase = 'gathering';
+    meetingState.callerId = payload.caller_id;
+    meetingState.callerName = payload.called_by;
+    meetingState.meetingType = payload.meeting_type;
+    meetingState.votingEnabled = payload.enable_voting || false;
+    meetingState.payload = payload;
+
+    // Setup meeting header
     const meetingHeader = document.getElementById('meeting-header');
     const meetingTitle = document.getElementById('meeting-title');
     const meetingCaller = document.getElementById('meeting-caller');
-
-    // Store caller info globally for two-phase meeting
-    meetingCallerId = payload.caller_id;
-    meetingCallerName = payload.called_by;
-    meetingPayload = payload;
 
     // Display differently for body report vs emergency meeting
     // HIDE reporter identity until meeting officially starts
@@ -1449,6 +1676,7 @@ function handleMeetingStart(payload) {
 
     updateProgress(payload.task_percentage);
 
+    // Populate player lists
     document.getElementById('alive-list').innerHTML = payload.alive_players.map(p => `
         <div class="player-item">${p.name}</div>
     `).join('');
@@ -1457,58 +1685,13 @@ function handleMeetingStart(payload) {
         <div class="player-item dead">${p.name}</div>
     `).join('');
 
-    // Reset voting state
-    hasVoted = false;
-    warningPlayed = false;
-    votingEnabled = payload.enable_voting || false;
-
     // Reset vote feed
     const voteFeed = document.getElementById('vote-feed');
     voteFeed.innerHTML = '';
     voteFeed.style.display = 'none';
 
-    // Get UI elements
-    const votingSection = document.getElementById('voting-section');
-    const meetingTimer = document.getElementById('meeting-timer');
-    const voteResultsSection = document.getElementById('vote-results-section');
-    const meetingPlayersSection = document.getElementById('meeting-players-section');
-    const gatheringSection = document.getElementById('gathering-section');
-
-    // Reset results section
-    voteResultsSection.style.display = 'none';
-
-    if (votingEnabled) {
-        // TWO-PHASE MEETING: Start in gathering phase
-        // Hide voting UI and timer until caller starts voting
-        votingSection.style.display = 'none';
-        meetingTimer.style.display = 'none';
-        meetingPlayersSection.style.display = 'none';
-
-        // Show gathering section
-        gatheringSection.style.display = 'block';
-
-        // Hide END MEETING button during gathering phase
-        document.getElementById('end-meeting-btn').style.display = 'none';
-
-        // Check if current player is the caller
-        const isCaller = playerId === payload.caller_id;
-
-        if (isCaller) {
-            // Caller sees START MEETING button
-            document.getElementById('start-meeting-btn').style.display = 'block';
-            document.getElementById('gathering-message').style.display = 'none';
-        } else {
-            // Everyone else sees waiting message
-            document.getElementById('start-meeting-btn').style.display = 'none';
-            document.getElementById('gathering-message').style.display = 'block';
-        }
-    } else {
-        // Voting disabled - show player lists as before
-        gatheringSection.style.display = 'none';
-        votingSection.style.display = 'none';
-        meetingTimer.style.display = 'none';
-        meetingPlayersSection.style.display = 'block';
-    }
+    // Render UI based on phase
+    renderMeetingPhase();
 
     showScreen('meeting-screen');
 
@@ -1544,42 +1727,38 @@ async function startVotingPhase() {
     }
 }
 
-let discussionTimerInterval = null;
-
 function handleVotingStarted(payload) {
-    // Transition from gathering phase to voting phase
-    const gatheringSection = document.getElementById('gathering-section');
-    const votingSection = document.getElementById('voting-section');
-    const meetingTimer = document.getElementById('meeting-timer');
+    // Update meeting state
+    meetingState.phase = 'voting';
+    meetingState.hasVoted = false;
 
-    // Hide gathering section
-    gatheringSection.style.display = 'none';
+    // Store timestamps for reference
+    const now = Date.now();
+    const discussionTime = payload.discussion_time || 0;
+    const timerDuration = payload.timer_duration || 120;
+    meetingState.discussionEndsAt = now + (discussionTime * 1000);
+    meetingState.votingEndsAt = now + (timerDuration * 1000);
 
-    // Show END MEETING button now that meeting has started
-    document.getElementById('end-meeting-btn').style.display = 'block';
+    // Render phase UI (hides gathering, shows voting)
+    renderMeetingPhase();
 
     // NOW reveal who called the meeting
     const meetingCaller = document.getElementById('meeting-caller');
-    if (meetingPayload && meetingPayload.meeting_type === 'body_report') {
-        meetingCaller.textContent = `Reported by ${meetingCallerName}`;
+    if (meetingState.meetingType === 'body_report') {
+        meetingCaller.textContent = `Reported by ${meetingState.callerName}`;
     } else {
-        meetingCaller.textContent = `Called by ${meetingCallerName}`;
+        meetingCaller.textContent = `Called by ${meetingState.callerName}`;
     }
 
     // Check if current player is alive (only alive players can vote)
     const me = allPlayers.find(p => p.id === playerId);
     const amAlive = me && me.status !== 'dead';
     // Also check if we're in the dead list
-    const inDeadList = meetingPayload && meetingPayload.dead_players.some(p => p.id === playerId);
+    const inDeadList = meetingState.payload && meetingState.payload.dead_players.some(p => p.id === playerId);
     const canVote = amAlive && !inDeadList;
 
-    // Show timer for everyone
-    meetingTimer.style.display = 'block';
-
-    // Show voting section
-    votingSection.style.display = 'block';
-
-    const discussionTime = payload.discussion_time || 0;
+    // Setup voting UI
+    const votingSection = document.getElementById('voting-section');
     const voteOptions = document.getElementById('vote-options');
     const skipBtn = document.getElementById('skip-vote-btn');
 
@@ -1637,14 +1816,12 @@ function handleVotingStarted(payload) {
         }, 1000);
 
         // Start the full meeting timer (includes discussion time)
-        const timerDuration = payload.timer_duration || 120;
         startMeetingTimer(timerDuration, payload.warning_time || 30);
     } else {
         // No discussion time - play sound and enable voting immediately
         playSound('sound-time-to-vote');
 
         // Start meeting timer
-        const timerDuration = payload.timer_duration || 120;
         startMeetingTimer(timerDuration, payload.warning_time || 30);
     }
 }
@@ -1655,7 +1832,7 @@ function startMeetingTimer(durationSeconds, warningTime) {
     if (meetingTimerInterval) clearInterval(meetingTimerInterval);
 
     meetingEndTime = Date.now() + (durationSeconds * 1000);
-    warningPlayed = false;
+    meetingState.warningPlayed = false;
 
     updateMeetingTimerDisplay();
     meetingTimerInterval = setInterval(() => {
@@ -1665,8 +1842,8 @@ function startMeetingTimer(durationSeconds, warningTime) {
         const remainingSeconds = Math.ceil(remaining / 1000);
 
         // Play warning sound
-        if (!warningPlayed && remainingSeconds <= warningTime && remainingSeconds > 0) {
-            warningPlayed = true;
+        if (!meetingState.warningPlayed && remainingSeconds <= warningTime && remainingSeconds > 0) {
+            meetingState.warningPlayed = true;
             playSound('sound-voting-warning');
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         }
@@ -1722,7 +1899,7 @@ async function handleTimerExpired() {
 }
 
 async function castVote(targetId) {
-    if (hasVoted) return;
+    if (meetingState.hasVoted) return;
 
     // Disable all vote buttons immediately
     const allVoteBtns = document.querySelectorAll('.vote-btn, #skip-vote-btn');
@@ -1736,7 +1913,7 @@ async function castVote(targetId) {
         const response = await fetch(url, { method: 'POST' });
 
         if (response.ok) {
-            hasVoted = true;
+            meetingState.hasVoted = true;
             // Highlight the selected vote
             if (targetId) {
                 const votedBtn = document.querySelector(`.vote-btn[onclick="castVote('${targetId}')"]`);
@@ -1758,39 +1935,35 @@ async function castVote(targetId) {
 }
 
 function handleVoteCast(payload) {
-    console.log('Vote cast payload:', payload);  // Debug
-    console.log('Current settings.anonymous_voting:', settings.anonymous_voting);  // Debug
-
-    // Update vote count display
+    // Update vote count display only - individual votes shown at results
     document.getElementById('votes-cast-count').textContent = payload.votes_cast;
     document.getElementById('votes-needed-count').textContent = payload.votes_needed;
-
-    // If non-anonymous voting and we have voter info, show who voted
-    if (payload.voter_name && payload.target_name) {
-        const voteFeed = document.getElementById('vote-feed');
-        voteFeed.style.display = 'block';
-        const entry = document.createElement('div');
-        entry.className = 'vote-feed-entry';
-        entry.textContent = `${payload.voter_name} → ${payload.target_name}`;
-        voteFeed.appendChild(entry);
-    }
 }
 
 function handleVoteResults(payload) {
+    // Update meeting state to results phase
+    meetingState.phase = 'results';
+
     // Stop the timer
     if (meetingTimerInterval) {
         clearInterval(meetingTimerInterval);
         meetingTimerInterval = null;
     }
+    if (discussionTimerInterval) {
+        clearInterval(discussionTimerInterval);
+        discussionTimerInterval = null;
+    }
 
     // Play "time to vote" sound (voting ended)
     playSound('sound-time-to-vote');
 
-    // Hide voting section, show results
-    document.getElementById('voting-section').style.display = 'none';
-    document.getElementById('vote-results-section').style.display = 'block';
+    // Render results phase UI
+    renderMeetingPhase();
 
-    // Display vote counts
+    // Debug: log the payload to see what we're getting
+    console.log('Vote results payload:', payload);
+
+    // Display vote counts with voters listed under each name
     const resultsList = document.getElementById('vote-results-list');
     let resultsHtml = '';
 
@@ -1798,22 +1971,37 @@ function handleVoteResults(payload) {
     const sortedResults = Object.entries(payload.vote_counts)
         .sort((a, b) => b[1] - a[1]);
 
+    // Get votes_by_target for showing who voted for whom
+    const votesByTarget = payload.votes_by_target || {};
+
     for (const [name, count] of sortedResults) {
         const isEliminated = payload.eliminated_name === name;
+        const voters = votesByTarget[name] || [];
+        const votersText = voters.length > 0 ? `(${voters.join(', ')})` : '';
+
         resultsHtml += `
             <div class="vote-result-item ${isEliminated ? 'eliminated' : ''}">
-                <span class="vote-result-name">${name}</span>
-                <span class="vote-result-count">${count} vote${count !== 1 ? 's' : ''}</span>
+                <div class="vote-result-main">
+                    <span class="vote-result-name">${name}</span>
+                    <span class="vote-result-count">${count} vote${count !== 1 ? 's' : ''}</span>
+                </div>
+                ${votersText ? `<div class="vote-result-voters">${votersText}</div>` : ''}
             </div>
         `;
     }
 
     // Show skip votes
     if (payload.skip_count > 0) {
+        const skipVoters = votesByTarget['Skip'] || [];
+        const skipVotersText = skipVoters.length > 0 ? `(${skipVoters.join(', ')})` : '';
+
         resultsHtml += `
             <div class="vote-result-item skip">
-                <span class="vote-result-name">Skip</span>
-                <span class="vote-result-count">${payload.skip_count} vote${payload.skip_count !== 1 ? 's' : ''}</span>
+                <div class="vote-result-main">
+                    <span class="vote-result-name">Skip</span>
+                    <span class="vote-result-count">${payload.skip_count} vote${payload.skip_count !== 1 ? 's' : ''}</span>
+                </div>
+                ${skipVotersText ? `<div class="vote-result-voters">${skipVotersText}</div>` : ''}
             </div>
         `;
     }
@@ -1832,6 +2020,10 @@ function handleVoteResults(payload) {
         outcomeEl.textContent = 'No one was ejected. (Skipped)';
         outcomeEl.className = 'vote-outcome no-eject';
     }
+
+    // Hide the old vote feed (we now show voters inline)
+    const voteFeed = document.getElementById('vote-feed');
+    voteFeed.style.display = 'none';
 }
 
 async function endMeeting() {
@@ -1845,6 +2037,9 @@ async function endMeeting() {
 }
 
 function handleMeetingEnd() {
+    // CLEAN SLATE: Reset all meeting state
+    resetMeetingState();
+
     showScreen('game-screen');
 
     // Reset kill cooldown timer after meeting for impostor/sheriff/lone wolf

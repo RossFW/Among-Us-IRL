@@ -352,6 +352,22 @@ class GameTester:
             self.assert_test(False, f"Sheriff shoot (error: {e})")
             return False
 
+    def mark_dead(self, player: Player, target_id: str) -> bool:
+        """Test: Mark a player as dead"""
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/games/{self.game_code}/players/{target_id}/die",
+                params={"session_token": player.session_token}
+            )
+            self.assert_test(
+                response.status_code == 200,
+                f"Marked player {target_id[:4]}... as dead"
+            )
+            return response.status_code == 200
+        except Exception as e:
+            self.assert_test(False, f"Mark dead (error: {e})")
+            return False
+
     def start_sabotage(self, player: Player, sabotage_index: int) -> bool:
         """Test: Start a sabotage (1=Lights, 2=Reactor, 3=O2, 4=Comms)"""
         try:
@@ -852,6 +868,127 @@ def test_sabotage_scenarios():
     print("="*60)
 
 
+def test_edge_cases():
+    """Test edge cases and invalid operations"""
+    print("\n" + "="*60)
+    print("⚠️  EDGE CASES TEST SUITE")
+    print("="*60)
+
+    tester = GameTester(BASE_URL)
+
+    # Test 1: Dead player can't vote
+    print("\n📍 TEST: Dead player cannot vote")
+    print("-" * 60)
+
+    host = tester.create_player("Host")
+    p2 = tester.create_player("Player2")
+    p3 = tester.create_player("Player3")
+    p4 = tester.create_player("Player4")
+
+    if tester.create_game(host):
+        for p in [p2, p3, p4]:
+            tester.join_game(p)
+        tester.players = [host, p2, p3, p4]
+
+        if tester.start_game(host):
+            # Get player IDs
+            for player in tester.players:
+                info = tester.get_player_info(player)
+                if info:
+                    player.player_id = info['id']
+
+            # Kill one player first
+            if tester.mark_dead(host, p2.player_id):
+                tester.assert_test(True, "Player marked as dead")
+
+                # Start meeting and voting
+                if tester.start_meeting(host):
+                    time.sleep(0.5)
+                    if tester.start_voting(host):
+                        time.sleep(6)
+
+                        # Dead player tries to vote (should fail)
+                        response = tester.cast_vote(p2, target_id=None)
+                        tester.assert_test(
+                            not response,
+                            "Dead player cannot vote (rejected)"
+                        )
+
+                        # Alive players can vote
+                        tester.cast_vote(host, target_id=None)
+                        tester.cast_vote(p3, target_id=None)
+                        tester.cast_vote(p4, target_id=None)
+
+                        time.sleep(1)
+                        tester.end_meeting(host)
+
+    # Test 2: Non-host can't change settings
+    print("\n📍 TEST: Non-host cannot change settings")
+    print("-" * 60)
+    tester2 = GameTester(BASE_URL)
+    host2 = tester2.create_player("Host2")
+    p2_2 = tester2.create_player("Player2")
+
+    if tester2.create_game(host2):
+        tester2.join_game(p2_2)
+        tester2.players = [host2, p2_2]
+
+        # Non-host tries to change settings (should fail)
+        response = tester2.update_settings(p2_2, {"num_impostors": 2})
+        tester2.assert_test(
+            not response,
+            "Non-host cannot change settings (rejected)"
+        )
+
+    # Test 3: Task completion after death (ghosts can complete tasks)
+    print("\n📍 TEST: Dead player CAN complete tasks (ghost)")
+    print("-" * 60)
+    tester3 = GameTester(BASE_URL)
+    host3 = tester3.create_player("Host3")
+    p2_3 = tester3.create_player("Player2")
+    p3_3 = tester3.create_player("Player3")
+    p4_3 = tester3.create_player("Player4")
+
+    if tester3.create_game(host3):
+        for p in [p2_3, p3_3, p4_3]:
+            tester3.join_game(p)
+        tester3.players = [host3, p2_3, p3_3, p4_3]
+
+        if tester3.start_game(host3):
+            # Find a crewmate with tasks
+            for player in tester3.players:
+                info = tester3.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+
+            crewmate = next((p for p in tester3.players if p.role and 'Crewmate' in p.role), None)
+            if crewmate:
+                # Get task
+                info = tester3.get_player_info(crewmate)
+                if info and info.get('tasks'):
+                    task_id = info['tasks'][0]['id']
+
+                    # Kill the crewmate
+                    tester3.mark_dead(host3, crewmate.player_id)
+                    time.sleep(0.5)
+
+                    # Ghost tries to complete task (should work!)
+                    if tester3.complete_task(crewmate, task_id):
+                        tester3.assert_test(
+                            True,
+                            "Dead player (ghost) CAN complete tasks"
+                        )
+
+    # Print summary
+    print("\n" + "="*60)
+    print("EDGE CASES SUMMARY")
+    print("="*60)
+    print(f"✅ Passed: {tester.tests_passed + tester2.tests_passed + tester3.tests_passed}")
+    print(f"❌ Failed: {tester.tests_failed + tester2.tests_failed + tester3.tests_failed}")
+    print("="*60)
+
+
 def main():
     """Run the test suite"""
     print("="*60)
@@ -983,6 +1120,8 @@ if __name__ == "__main__":
             test_role_abilities()
         elif test_type == "sabotage":
             test_sabotage_scenarios()
+        elif test_type == "edge":
+            test_edge_cases()
         elif test_type == "all":
             main()
             print("\n")
@@ -991,9 +1130,11 @@ if __name__ == "__main__":
             test_role_abilities()
             print("\n")
             test_sabotage_scenarios()
+            print("\n")
+            test_edge_cases()
         else:
             print(f"Unknown test type: {test_type}")
-            print("Usage: python test_game_flow.py [voting|abilities|sabotage|all]")
+            print("Usage: python test_game_flow.py [voting|abilities|sabotage|edge|all]")
     else:
         # Run basic flow test (default)
         main()

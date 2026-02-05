@@ -320,6 +320,38 @@ class GameTester:
             self.assert_test(False, f"Engineer fix (error: {e})")
             return False
 
+    def captain_meeting(self, player: Player) -> bool:
+        """Test: Captain ability - remote meeting"""
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/games/{self.game_code}/ability/captain-meeting",
+                params={"session_token": player.session_token}
+            )
+            self.assert_test(
+                response.status_code == 200,
+                f"Captain '{player.name}' called remote meeting"
+            )
+            return response.status_code == 200
+        except Exception as e:
+            self.assert_test(False, f"Captain meeting (error: {e})")
+            return False
+
+    def sheriff_shoot(self, player: Player, target_id: str) -> bool:
+        """Test: Sheriff shoot"""
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/games/{self.game_code}/sheriff/shoot/{target_id}",
+                params={"session_token": player.session_token}
+            )
+            self.assert_test(
+                response.status_code == 200,
+                f"Sheriff '{player.name}' shot target {target_id[:4]}..."
+            )
+            return response.status_code == 200
+        except Exception as e:
+            self.assert_test(False, f"Sheriff shoot (error: {e})")
+            return False
+
     def start_sabotage(self, player: Player, sabotage_index: int) -> bool:
         """Test: Start a sabotage (1=Lights, 2=Reactor, 3=O2, 4=Comms)"""
         try:
@@ -508,14 +540,315 @@ def test_voting_scenarios():
 
                     tester3.end_meeting(host3)
 
+    # Test 4: Single vote wins
+    print("\n📍 TEST: Single vote (1 person votes)")
+    print("-" * 60)
+    tester4 = GameTester(BASE_URL)
+    host4 = tester4.create_player("Host4")
+    p2_4 = tester4.create_player("Player2")
+    p3_4 = tester4.create_player("Player3")
+    p4_4 = tester4.create_player("Player4")
+
+    if tester4.create_game(host4):
+        for p in [p2_4, p3_4, p4_4]:
+            tester4.join_game(p)
+        tester4.players = [host4, p2_4, p3_4, p4_4]
+
+        if tester4.start_game(host4):
+            # Get player IDs
+            for player in tester4.players:
+                info = tester4.get_player_info(player)
+                player.player_id = info['id'] if info else player.player_id
+
+            # Start meeting
+            if tester4.start_meeting(host4):
+                time.sleep(0.5)
+                if tester4.start_voting(host4):
+                    time.sleep(6)  # Wait for discussion
+
+                    # Only 1 person votes, rest skip
+                    tester4.cast_vote(host4, target_id=p2_4.player_id)
+                    tester4.cast_vote(p2_4, target_id=None)
+                    tester4.cast_vote(p3_4, target_id=None)
+                    tester4.cast_vote(p4_4, target_id=None)
+
+                    time.sleep(1)
+
+                    # Check result - with 3 skips vs 1 vote, skip wins (no elimination)
+                    state = tester4.get_game_state(host4)
+                    alive_count = sum(1 for p in state['players'] if p['status'] == 'alive')
+                    tester4.assert_test(
+                        alive_count == 4,
+                        "Single vote vs 3 skips → no elimination (skip plurality wins)"
+                    )
+
+                    tester4.end_meeting(host4)
+
+    # Test 5: 3-way tie
+    print("\n📍 TEST: 3-way tie (1v1v1)")
+    print("-" * 60)
+    tester5 = GameTester(BASE_URL)
+    host5 = tester5.create_player("Host5")
+    p2_5 = tester5.create_player("Player2")
+    p3_5 = tester5.create_player("Player3")
+    p4_5 = tester5.create_player("Player4")
+
+    if tester5.create_game(host5):
+        for p in [p2_5, p3_5, p4_5]:
+            tester5.join_game(p)
+        tester5.players = [host5, p2_5, p3_5, p4_5]
+
+        if tester5.start_game(host5):
+            # Get player IDs
+            for player in tester5.players:
+                info = tester5.get_player_info(player)
+                player.player_id = info['id'] if info else player.player_id
+
+            # Start meeting
+            if tester5.start_meeting(host5):
+                time.sleep(0.5)
+                if tester5.start_voting(host5):
+                    time.sleep(6)  # Wait for discussion
+
+                    # 3-way tie: p2 votes p3, p3 votes p4, p4 votes p2, host skips
+                    tester5.cast_vote(host5, target_id=None)
+                    tester5.cast_vote(p2_5, target_id=p3_5.player_id)
+                    tester5.cast_vote(p3_5, target_id=p4_5.player_id)
+                    tester5.cast_vote(p4_5, target_id=p2_5.player_id)
+
+                    time.sleep(1)
+
+                    # Check result - no one eliminated (3-way tie)
+                    state = tester5.get_game_state(host5)
+                    alive_count = sum(1 for p in state['players'] if p['status'] == 'alive')
+                    tester5.assert_test(
+                        alive_count == 4,
+                        "3-way tie → no elimination (all 4 players still alive)"
+                    )
+
+                    tester5.end_meeting(host5)
+
     # Print summary
     print("\n" + "="*60)
     print("VOTING SCENARIOS SUMMARY")
     print("="*60)
-    total_passed = tester.tests_passed + tester2.tests_passed + tester3.tests_passed
-    total_failed = tester.tests_failed + tester2.tests_failed + tester3.tests_failed
+    total_passed = sum([tester.tests_passed, tester2.tests_passed, tester3.tests_passed,
+                        tester4.tests_passed, tester5.tests_passed])
+    total_failed = sum([tester.tests_failed, tester2.tests_failed, tester3.tests_failed,
+                        tester4.tests_failed, tester5.tests_failed])
     print(f"✅ Passed: {total_passed}")
     print(f"❌ Failed: {total_failed}")
+    print("="*60)
+
+
+def test_role_abilities():
+    """Test role-specific abilities"""
+    print("\n" + "="*60)
+    print("🎭 ROLE ABILITIES TEST SUITE")
+    print("="*60)
+
+    tester = GameTester(BASE_URL)
+
+    # Create game with 6 players for better role variety
+    print("\n📍 Creating game with 6 players for role testing")
+    print("-" * 60)
+
+    host = tester.create_player("Host")
+    players = [host]
+    for i in range(2, 7):
+        players.append(tester.create_player(f"Player{i}"))
+
+    if tester.create_game(host):
+        for p in players[1:]:
+            tester.join_game(p)
+        tester.players = players
+
+        # Enable various roles for testing
+        tester.update_settings(host, {
+            "enable_sheriff": True,
+            "engineer": {"enabled": True, "probability": 50, "max_count": 1},
+            "captain": {"enabled": True, "probability": 50, "max_count": 1},
+            "enable_sabotage": True
+        })
+
+        if tester.start_game(host):
+            # Get all player info to see roles
+            print("\n👥 Assigned Roles:")
+            for player in tester.players:
+                info = tester.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+                    print(f"   {player.name}: {player.role}")
+
+            # Test Engineer ability (if present)
+            engineer = next((p for p in tester.players if p.role == 'Engineer'), None)
+            impostor = next((p for p in tester.players if p.role and 'Impostor' in p.role), None)
+
+            if engineer and impostor:
+                print("\n📍 TEST: Engineer Remote Fix")
+                print("-" * 60)
+
+                # Start sabotage
+                if tester.start_sabotage(impostor, 1):  # Lights
+                    time.sleep(0.5)
+                    # Engineer fixes remotely
+                    if tester.engineer_fix(engineer):
+                        tester.assert_test(True, "Engineer fixed sabotage remotely")
+
+                    # Try to use again (should fail)
+                    response = tester.engineer_fix(engineer)
+                    tester.assert_test(
+                        not response,
+                        "Engineer can't fix twice (already used)"
+                    )
+
+            # Test Captain ability (if present)
+            captain = next((p for p in tester.players if p.role == 'Captain'), None)
+            if captain:
+                print("\n📍 TEST: Captain Remote Meeting")
+                print("-" * 60)
+
+                if tester.captain_meeting(captain):
+                    tester.assert_test(True, "Captain called remote meeting")
+                    time.sleep(0.5)
+                    tester.end_meeting(host)
+
+                    # Try to use again (should fail)
+                    response = tester.captain_meeting(captain)
+                    tester.assert_test(
+                        not response,
+                        "Captain can't call meeting twice (already used)"
+                    )
+
+            # Test Sheriff ability (if present)
+            sheriff = next((p for p in tester.players if p.role == 'Sheriff'), None)
+            if sheriff and impostor:
+                print("\n📍 TEST: Sheriff Shoot")
+                print("-" * 60)
+
+                # Sheriff shoots impostor (impostor should die)
+                if tester.sheriff_shoot(sheriff, impostor.player_id):
+                    time.sleep(0.5)
+                    state = tester.get_game_state(host)
+                    target = next((p for p in state['players'] if p['id'] == impostor.player_id), None)
+                    tester.assert_test(
+                        target and target['status'] == 'dead',
+                        "Sheriff shoots impostor → impostor dies"
+                    )
+
+    # Print summary
+    print("\n" + "="*60)
+    print("ROLE ABILITIES SUMMARY")
+    print("="*60)
+    print(f"✅ Passed: {tester.tests_passed}")
+    print(f"❌ Failed: {tester.tests_failed}")
+    print("="*60)
+
+
+def test_sabotage_scenarios():
+    """Test sabotage mechanics"""
+    print("\n" + "="*60)
+    print("💡 SABOTAGE TEST SUITE")
+    print("="*60)
+
+    tester = GameTester(BASE_URL)
+
+    # Test 1: Lights sabotage persists after meeting
+    print("\n📍 TEST: Lights sabotage persists across meeting")
+    print("-" * 60)
+
+    host = tester.create_player("Host")
+    p2 = tester.create_player("Player2")
+    p3 = tester.create_player("Player3")
+    p4 = tester.create_player("Player4")
+
+    if tester.create_game(host):
+        for p in [p2, p3, p4]:
+            tester.join_game(p)
+        tester.players = [host, p2, p3, p4]
+
+        # Enable sabotage
+        tester.update_settings(host, {"enable_sabotage": True})
+
+        if tester.start_game(host):
+            # Find impostor
+            for player in tester.players:
+                info = tester.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+
+            impostor = next((p for p in tester.players if p.role == 'Impostor'), None)
+            crewmate = next((p for p in tester.players if p.role and 'Crewmate' in p.role), None)
+
+            if impostor:
+                # Start lights sabotage
+                if tester.start_sabotage(impostor, 1):
+                    tester.assert_test(True, "Lights sabotage started")
+
+                    # Call meeting WITHOUT fixing sabotage
+                    if tester.start_meeting(host):
+                        time.sleep(0.5)
+                        if tester.start_voting(host):
+                            time.sleep(6)
+                            # Everyone skips
+                            for player in tester.players:
+                                tester.cast_vote(player, target_id=None)
+                            time.sleep(1)
+                            tester.end_meeting(host)
+
+                    # After meeting, sabotage should still be active
+                    # Try to fix it
+                    if crewmate and tester.fix_sabotage(crewmate):
+                        tester.assert_test(
+                            True,
+                            "Lights persisted after meeting and was fixed"
+                        )
+
+    # Test 2: Sabotage cooldown
+    print("\n📍 TEST: Sabotage cooldown prevents immediate re-trigger")
+    print("-" * 60)
+    tester2 = GameTester(BASE_URL)
+    host2 = tester2.create_player("Host2")
+    p2_2 = tester2.create_player("Player2")
+    p3_2 = tester2.create_player("Player3")
+    p4_2 = tester2.create_player("Player4")
+
+    if tester2.create_game(host2):
+        for p in [p2_2, p3_2, p4_2]:
+            tester2.join_game(p)
+        tester2.players = [host2, p2_2, p3_2, p4_2]
+
+        tester2.update_settings(host2, {"enable_sabotage": True, "sabotage_cooldown": 10})
+
+        if tester2.start_game(host2):
+            # Find impostor
+            for player in tester2.players:
+                info = tester2.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+
+            impostor2 = next((p for p in tester2.players if p.role == 'Impostor'), None)
+            if impostor2:
+                # Start sabotage
+                if tester2.start_sabotage(impostor2, 1):
+                    # Fix it immediately
+                    tester2.fix_sabotage(host2)
+
+                    # Try to start another sabotage immediately (should fail due to cooldown)
+                    response = tester2.start_sabotage(impostor2, 2)
+                    tester2.assert_test(
+                        not response,
+                        "Sabotage cooldown prevents immediate re-trigger"
+                    )
+
+    # Print summary
+    print("\n" + "="*60)
+    print("SABOTAGE SCENARIOS SUMMARY")
+    print("="*60)
+    print(f"✅ Passed: {tester.tests_passed + tester2.tests_passed}")
+    print(f"❌ Failed: {tester.tests_failed + tester2.tests_failed}")
     print("="*60)
 
 
@@ -642,9 +975,25 @@ def main():
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) > 1 and sys.argv[1] == "voting":
-        # Run voting scenarios test
-        test_voting_scenarios()
+    if len(sys.argv) > 1:
+        test_type = sys.argv[1]
+        if test_type == "voting":
+            test_voting_scenarios()
+        elif test_type == "abilities":
+            test_role_abilities()
+        elif test_type == "sabotage":
+            test_sabotage_scenarios()
+        elif test_type == "all":
+            main()
+            print("\n")
+            test_voting_scenarios()
+            print("\n")
+            test_role_abilities()
+            print("\n")
+            test_sabotage_scenarios()
+        else:
+            print(f"Unknown test type: {test_type}")
+            print("Usage: python test_game_flow.py [voting|abilities|sabotage|all]")
     else:
         # Run basic flow test (default)
         main()

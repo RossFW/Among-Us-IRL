@@ -99,6 +99,24 @@
         .instructions li {
             margin-bottom: 8px;
         }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #0f3460;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .footer a {
+            color: #e94560;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -114,19 +132,25 @@
                 GAME HOST: Update this URL before each game!
 
                 1. Start your server with: python run.py --tunnel
-                2. Copy the Cloudflare URL (https://xxxx-yyyy.trycloudflare.com)
-                3. Replace the URL in the href below
-                4. Commit and push to GitHub
+                2. Copy the Cloudflare URL (e.g., https://xxxx-yyyy.trycloudflare.com)
+                3. UNCOMMENT the <a> tag below and paste your URL
+                4. COMMENT OUT the "No active game" message
+                5. git add docs/index.html && git commit -m "Update game URL" && git push
+                6. Share: https://rossfw.github.io/Among-Us-IRL/
+
+                To end the session, reverse steps 3-4 and push again.
                 =============================================
             -->
 
-            <!-- UNCOMMENT AND UPDATE THIS WHEN A GAME IS ACTIVE: -->
-            <a href="https://gentle-cookie-delivered-considerable.trycloudflare.com" class="join-btn">
+            <!-- WHEN GAME IS ACTIVE: Uncomment this and update the URL -->
+            <!--
+            <a href="https://YOUR-CLOUDFLARE-URL.trycloudflare.com" class="join-btn">
                 Join Game
             </a>
+            -->
 
-            <!-- COMMENT THIS OUT WHEN A GAME IS ACTIVE: -->
-            <!-- <p class="no-game">No active game right now.<br>Check back when the host starts a session!</p> -->
+            <!-- WHEN NO GAME: This shows by default -->
+            <p class="no-game">No active game right now.<br>Check back when the host starts a session!</p>
 
         </div>
 
@@ -138,6 +162,14 @@
                 <li>Enter your name and the 4-letter game code</li>
                 <li>Add to Home Screen for the best experience!</li>
             </ol>
+        </div>
+
+        <div class="footer">
+            <p>
+                <a href="https://github.com/RossFW/Among-Us-IRL" target="_blank">View on GitHub</a>
+                <!-- Update this date when you update the game URL -->
+                <!-- | Last updated: March 7, 2026 -->
+            </p>
         </div>
     </div>
 </body>

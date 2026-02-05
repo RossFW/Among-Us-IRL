@@ -4,27 +4,35 @@ A Progressive Web App for playing Among Us in real life. Players use their phone
 
 ## Quick Start
 
-### Start the Server
+### Start the Server (Local Testing)
 ```bash
-./start.sh
+python run.py
 ```
-cd ~/Desktop/Among\ Us/among-us-pwa
-./start.sh
+Access at http://localhost:8000
 
-This shows you the URLs:
-- **Computer**: http://localhost:8000
-- **Phone** (same WiFi): http://YOUR_LOCAL_IP:8000
-
-### Game Day (External Access)
-When friends need to connect from outside your WiFi:
+### Game Day (External Access via Cloudflare Tunnel)
 ```bash
-# Terminal 1
-./start.sh
-
-# Terminal 2
-cloudflared tunnel --url http://localhost:8000
+python run.py --tunnel
 ```
-Share the generated `*.trycloudflare.com` URL.
+This starts the server AND creates a public Cloudflare URL. Share the `*.trycloudflare.com` URL with players.
+
+### 🌐 GitHub Pages Landing Page (Recommended!)
+Instead of sharing a new Cloudflare URL every time, use a permanent landing page:
+
+1. **Enable GitHub Pages** (one-time setup):
+   - Go to repo Settings → Pages
+   - Source: `main` branch, `/docs` folder
+   - Save
+
+2. **Before each game:**
+   - Run `python run.py --tunnel`
+   - Copy the Cloudflare URL
+   - Edit `docs/index.html` and uncomment the "Join Game" button with your URL
+   - Commit and push: `git add docs/index.html && git commit -m "Update game URL" && git push`
+
+3. **Share this permanent link:** https://rossfw.github.io/Among-Us-IRL/
+
+Players visit the same URL every time - no confusion! See [docs/README.md](docs/README.md) for full instructions.
 
 ---
 

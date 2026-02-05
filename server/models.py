@@ -36,15 +36,15 @@ class Role(str, Enum):
 
     # New Crewmate variants
     ENGINEER = "Engineer"      # Fix ONE sabotage remotely per game
-    CAPTAIN = "Captain"        # Extra remote meeting button (additional to normal)
+    CAPTAIN = "Captain"        # Call a remote meeting from anywhere (one use per game)
     MAYOR = "Mayor"            # Vote counts twice
-    NICE_GUESSER = "Nice Guesser"  # Quick-guess a player's role during voting
+    NICE_GUESSER = "Bounty Hunter"  # Crew guesser: guess if someone is an impostor
     SPY = "Spy"                # Appears as impostor to impostors
     SWAPPER = "Swapper"        # Swap votes between two players
 
     # New Impostor variants
-    EVIL_GUESSER = "Evil Guesser"  # Same as Nice Guesser but for impostors
-    BOUNTY_HUNTER = "Bounty Hunter"  # Shorter cooldown for target, longer for others
+    EVIL_GUESSER = "Riddler"  # Impostor guesser: guess anyone's exact role
+    BOUNTY_HUNTER = "Rampager"  # Shorter cooldown for target, longer for others
     CLEANER = "Cleaner"        # Can "clean" bodies (drag them elsewhere)
     VENTER = "Venter"          # Can go outside/through vents (access doors)
 
@@ -72,7 +72,7 @@ ROLE_CATEGORIES = {
     Role.JESTER: RoleCategory.NEUTRAL,
     Role.LONE_WOLF: RoleCategory.NEUTRAL,
     Role.VULTURE: RoleCategory.NEUTRAL,
-    Role.NOISE_MAKER: RoleCategory.NEUTRAL,
+    Role.NOISE_MAKER: RoleCategory.CREW,
 }
 
 
@@ -143,11 +143,13 @@ class PlayerModel(BaseModel):
 
     # Role-specific state fields
     engineer_fix_used: bool = False           # Engineer: has used remote fix
-    captain_meeting_used: bool = False        # Captain: has used extra meeting
+    captain_meeting_used: bool = False        # Captain: has used remote meeting
     guesser_used_this_meeting: bool = False   # Guesser: has guessed this meeting
     swapper_targets: Optional[tuple[str, str]] = None  # Swapper: two player IDs to swap votes
     vulture_bodies_eaten: int = 0             # Vulture: corpses consumed
+    vulture_eaten_body_ids: list[str] = Field(default_factory=list)  # IDs of bodies already eaten
     bounty_target_id: Optional[str] = None    # Bounty Hunter: current target player ID
+    bounty_kills: int = 0                     # Bounty Hunter: successful bounty kills (reduces cooldown)
     noise_maker_target_id: Optional[str] = None  # Noise Maker: who will "find" them
 
 
@@ -199,7 +201,7 @@ class GameSettings(BaseModel):
     # Meeting cooldown
     meeting_cooldown: int = 30  # Seconds between meetings
     # Sabotage settings
-    enable_sabotage: bool = False
+    enable_sabotage: bool = True
     sabotage_cooldown: int = 10  # Global cooldown between sabotages
     # Sabotage 1: Lights
     sabotage_1_enabled: bool = True
@@ -227,6 +229,10 @@ class GameSettings(BaseModel):
     enable_voting: bool = True         # Enable in-app voting
     anonymous_voting: bool = False     # If False, show who voted for whom
     discussion_time: int = 5           # seconds of discussion before voting enabled (0 to disable)
+    # Vulture settings
+    vulture_eat_count: int = 3         # Number of bodies vulture must eat to win
+    # Post-vote results timer
+    vote_results_duration: int = 10    # Seconds to show results before END MEETING appears (5-30)
 
 
 class ActiveSabotage(BaseModel):
@@ -285,6 +291,8 @@ class GameModel(BaseModel):
     sabotage_cooldown_end: Optional[float] = None  # timestamp when cooldown ends
     # Meeting/Voting state
     active_meeting: Optional[MeetingState] = None
+    # Vulture: bodies that can no longer be eaten (discovered in meetings or voted out)
+    vulture_ineligible_body_ids: list[str] = Field(default_factory=list)
 
     def get_task_completion_percentage(self) -> float:
         """Calculate task completion percentage (all crew-aligned roles)."""
@@ -362,6 +370,10 @@ class UpdateSettingsRequest(BaseModel):
     enable_voting: Optional[bool] = None
     anonymous_voting: Optional[bool] = None
     discussion_time: Optional[int] = None
+    # Vulture settings
+    vulture_eat_count: Optional[int] = None
+    # Post-vote results timer
+    vote_results_duration: Optional[int] = None
     # Role configs
     role_configs: Optional[dict[str, dict]] = None  # {"engineer": {"enabled": true, "probability": 100}}
 
@@ -443,8 +455,8 @@ ROLE_DESCRIPTIONS = {
     "captain": {
         "name": "Captain",
         "category": "crew",
-        "short": "Call an extra emergency meeting",
-        "description": "Has one additional emergency meeting button use beyond the normal limit.",
+        "short": "Call a remote meeting from anywhere",
+        "description": "Once per game, call a meeting from anywhere without needing to go to the meeting spot.",
         "color": "#0ea5e9"
     },
     "mayor": {
@@ -455,10 +467,10 @@ ROLE_DESCRIPTIONS = {
         "color": "#8b5cf6"
     },
     "nice_guesser": {
-        "name": "Nice Guesser",
+        "name": "Bounty Hunter",
         "category": "crew",
-        "short": "Guess roles during voting",
-        "description": "Once per meeting, guess a player's role. Correct = they die. Wrong = YOU die.",
+        "short": "Hunt down impostors",
+        "description": "During voting, guess if a player is an impostor. Correct = they die. Wrong = YOU die.",
         "color": "#14b8a6"
     },
     "spy": {
@@ -477,17 +489,17 @@ ROLE_DESCRIPTIONS = {
     },
     # New Impostor variants
     "evil_guesser": {
-        "name": "Evil Guesser",
+        "name": "Riddler",
         "category": "impostor",
         "short": "Guess roles during voting",
-        "description": "Once per meeting, guess a player's role. Correct = they die. Wrong = YOU die.",
+        "description": "Once per meeting, guess a player's exact role. Correct = they die. Wrong = YOU die.",
         "color": "#dc2626"
     },
     "bounty_hunter": {
-        "name": "Bounty Hunter",
+        "name": "Rampager",
         "category": "impostor",
         "short": "Faster kills on your target",
-        "description": "You have a bounty target. Kill them faster, but others take longer. Target changes when killed.",
+        "description": "You have a target. Kill them to reduce your cooldown. Target changes when killed.",
         "color": "#b91c1c"
     },
     "cleaner": {
@@ -514,7 +526,7 @@ ROLE_DESCRIPTIONS = {
     },
     "noise_maker": {
         "name": "Noise Maker",
-        "category": "neutral",
+        "category": "crew",
         "short": "Choose who finds your body",
         "description": "When you die, select another player. They get a fake 'body found' notification from your location.",
         "color": "#f59e0b"

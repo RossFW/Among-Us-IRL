@@ -154,6 +154,22 @@ def assign_roles(game: GameModel) -> bool:
     return True
 
 
+def reassign_bounty_target(game: GameModel, bounty_hunter: PlayerModel) -> Optional[str]:
+    """Assign a new random bounty target (alive, non-impostor, not self).
+    Returns the new target's ID, or None if no valid targets."""
+    valid_targets = [
+        p for p in game.get_alive_players()
+        if ROLE_CATEGORIES.get(p.role) != RoleCategory.IMPOSTOR
+        and p.id != bounty_hunter.id
+    ]
+    if not valid_targets:
+        bounty_hunter.bounty_target_id = None
+        return None
+    target = random.choice(valid_targets)
+    bounty_hunter.bounty_target_id = target.id
+    return target.id
+
+
 def distribute_tasks(game: GameModel):
     """
     Distribute tasks to all players.
@@ -272,7 +288,7 @@ def check_win_conditions(game: GameModel) -> Optional[str]:
     lone_wolf_alive = any(p.role == Role.LONE_WOLF for p in alive)
 
     # Vulture win check - if any vulture has eaten enough bodies
-    vulture_win_threshold = 3  # Number of bodies needed to win
+    vulture_win_threshold = game.settings.vulture_eat_count
     for player in game.players.values():
         if player.role == Role.VULTURE and player.vulture_bodies_eaten >= vulture_win_threshold:
             return "Vulture"
@@ -300,9 +316,11 @@ def check_win_conditions(game: GameModel) -> Optional[str]:
     if num_impostor_team == 0 and not lone_wolf_alive:
         return "Crewmate"
 
-    # Impostor win: outnumber or equal crewmates, no lone wolf, at least 1 impostor
+    # Impostor win: outnumber or equal all non-impostors, no lone wolf, at least 1 impostor
     # Note: Minion counts with impostors now via ROLE_CATEGORIES
-    if not lone_wolf_alive and num_impostor_team >= num_crew_team and num_impostor_team > 0:
+    # Must count neutrals (Vulture etc) as non-impostor - they're still targets
+    num_non_impostor = num_crew_team + num_neutral
+    if not lone_wolf_alive and num_impostor_team >= num_non_impostor and num_impostor_team > 0:
         return "Impostor"
 
     # Lone Wolf win: only crew left and it's just LW vs 1 crewmate
@@ -429,29 +447,34 @@ def get_role_info(player: PlayerModel, game: GameModel) -> dict:
         ]
     }
 
-    # Impostor-aligned roles can see who the "impostors" are
+    # Impostor-aligned roles (excluding Minion) can see who the "impostors" are
     # This includes Spy (who appears as impostor to impostors)
+    # Minion is blind - doesn't know who impostors are (matches original DC bot)
     player_category = ROLE_CATEGORIES.get(player.role)
-    if player_category == RoleCategory.IMPOSTOR or player.role == Role.MINION:
-        # Show all impostor-aligned AND Spy
+    if player_category == RoleCategory.IMPOSTOR and player.role != Role.MINION:
+        # Show all impostor-aligned AND Spy, but NOT Minion (impostors don't know who Minion is)
         info["fellow_impostors"] = [
             {"id": p.id, "name": p.name}
             for p in game.players.values()
             if p.id != player.id and (
-                ROLE_CATEGORIES.get(p.role) == RoleCategory.IMPOSTOR or
+                (ROLE_CATEGORIES.get(p.role) == RoleCategory.IMPOSTOR and p.role != Role.MINION) or
                 p.role == Role.SPY  # Spy appears as impostor to impostors
             )
         ]
 
     # Role-specific info
-    if player.role == Role.BOUNTY_HUNTER and player.bounty_target_id:
-        target = game.players.get(player.bounty_target_id)
-        if target:
-            info["bounty_target"] = {"id": target.id, "name": target.name}
+    if player.role == Role.BOUNTY_HUNTER:
+        info["bounty_kills"] = player.bounty_kills
+        if player.bounty_target_id:
+            target = game.players.get(player.bounty_target_id)
+            if target:
+                info["bounty_target"] = {"id": target.id, "name": target.name}
 
     if player.role == Role.VULTURE:
         info["bodies_eaten"] = player.vulture_bodies_eaten
-        info["bodies_needed"] = 2  # Win threshold
+        info["bodies_needed"] = game.settings.vulture_eat_count
+        info["eaten_body_ids"] = player.vulture_eaten_body_ids
+        info["ineligible_body_ids"] = game.vulture_ineligible_body_ids
 
     if player.role == Role.ENGINEER:
         info["remote_fix_available"] = not player.engineer_fix_used

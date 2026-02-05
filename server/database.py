@@ -29,6 +29,18 @@ class GameStore:
 
         return game, host
 
+    def create_game_with_code(self, host_name: str, code: str) -> tuple[GameModel, PlayerModel]:
+        """Create a new game with a specific code (for testing)."""
+        # Delete old game with this code if exists
+        if code in self.games:
+            del self.games[code]
+
+        game = GameModel(code=code)
+        host = PlayerModel(name=host_name, is_host=True)
+        game.players[host.id] = host
+        self.games[code] = game
+        return game, host
+
     def get_game(self, code: str) -> Optional[GameModel]:
         """Get game by code."""
         return self.games.get(code.upper())

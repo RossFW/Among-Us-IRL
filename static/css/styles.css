@@ -431,6 +431,21 @@ body {
 .role-badge.role-lone-wolf .role-name-small { color: var(--lone-wolf); }
 .role-badge.role-minion .role-name-small { color: var(--minion); }
 .role-badge.role-sheriff .role-name-small { color: var(--sheriff); }
+/* New crewmate roles */
+.role-badge.role-engineer .role-name-small { color: var(--crewmate); }
+.role-badge.role-captain .role-name-small { color: var(--crewmate); }
+.role-badge.role-mayor .role-name-small { color: var(--crewmate); }
+.role-badge.role-bounty-hunter .role-name-small { color: var(--crewmate); }
+.role-badge.role-spy .role-name-small { color: var(--crewmate); }
+.role-badge.role-swapper .role-name-small { color: var(--crewmate); }
+/* New impostor roles */
+.role-badge.role-riddler .role-name-small { color: var(--impostor); }
+.role-badge.role-rampager .role-name-small { color: var(--impostor); }
+.role-badge.role-cleaner .role-name-small { color: var(--impostor); }
+.role-badge.role-venter .role-name-small { color: var(--impostor); }
+/* New neutral roles */
+.role-badge.role-vulture .role-name-small { color: #a855f7; }
+.role-badge.role-noise-maker .role-name-small { color: var(--crewmate); }
 
 /* Role Info Section (below tasks) */
 .role-info-section {
@@ -468,12 +483,126 @@ body {
     font-size: 14px;
 }
 
+.role-display .role-team {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+.role-team.team-crewmate {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--crewmate);
+}
+
+.role-team.team-impostor {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--impostor);
+}
+
+.role-team.team-neutral {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+}
+
 .role-crewmate .role-name { color: var(--crewmate); }
 .role-impostor .role-name { color: var(--impostor); }
 .role-jester .role-name { color: var(--jester); }
 .role-lone-wolf .role-name { color: var(--lone-wolf); }
 .role-minion .role-name { color: var(--minion); }
 .role-sheriff .role-name { color: var(--sheriff); }
+
+/* New role colors */
+.role-engineer .role-name { color: var(--crewmate); }
+.role-captain .role-name { color: var(--crewmate); }
+.role-mayor .role-name { color: var(--crewmate); }
+.role-bounty-hunter .role-name { color: var(--crewmate); }
+.role-spy .role-name { color: var(--crewmate); }
+.role-swapper .role-name { color: var(--crewmate); }
+.role-riddler .role-name { color: var(--impostor); }
+.role-rampager .role-name { color: var(--impostor); }
+.role-cleaner .role-name { color: var(--impostor); }
+.role-venter .role-name { color: var(--impostor); }
+.role-vulture .role-name { color: #a855f7; }
+.role-noise-maker .role-name { color: #a855f7; }
+
+/* Role Ability Buttons */
+.btn-ability {
+    margin-bottom: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.btn-engineer-fix {
+    background: #22c55e;
+    color: white;
+}
+
+.btn-engineer-fix:disabled {
+    background: #374151;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.btn-captain-meeting {
+    background: #0ea5e9;
+    color: white;
+}
+
+.btn-captain-meeting:disabled {
+    background: #374151;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+/* Vulture Eat Section */
+.ability-section {
+    margin-bottom: 16px;
+}
+
+.vulture-progress {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: #84cc16;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: rgba(132, 204, 22, 0.1);
+    border-radius: 8px;
+}
+
+.vulture-body-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vulture-eat-btn {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(132, 204, 22, 0.15);
+    border: 2px solid #84cc16;
+    color: #84cc16;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.vulture-eat-btn:active {
+    background: rgba(132, 204, 22, 0.3);
+}
+
+.vulture-eat-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 .fellow-impostors {
     background: rgba(239, 68, 68, 0.2);
@@ -1007,6 +1136,21 @@ body {
 .player-role.role-lone-wolf { background: rgba(249, 115, 22, 0.2); color: var(--lone-wolf); }
 .player-role.role-minion { background: rgba(234, 179, 8, 0.2); color: var(--minion); }
 .player-role.role-sheriff { background: rgba(59, 130, 246, 0.2); color: var(--sheriff); }
+/* New crewmate role end-screen colors */
+.player-role.role-engineer { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+.player-role.role-captain { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+.player-role.role-mayor { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+.player-role.role-bounty-hunter { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+.player-role.role-spy { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+.player-role.role-swapper { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+.player-role.role-noise-maker { background: rgba(74, 222, 128, 0.2); color: var(--crewmate); }
+/* New impostor role end-screen colors */
+.player-role.role-riddler { background: rgba(239, 68, 68, 0.2); color: var(--impostor); }
+.player-role.role-rampager { background: rgba(239, 68, 68, 0.2); color: var(--impostor); }
+.player-role.role-cleaner { background: rgba(239, 68, 68, 0.2); color: var(--impostor); }
+.player-role.role-venter { background: rgba(239, 68, 68, 0.2); color: var(--impostor); }
+/* New neutral role end-screen colors */
+.player-role.role-vulture { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
 
 /* Error Message */
 .error-message {
@@ -1589,6 +1733,7 @@ body {
 
 .role-config-item {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     padding: 6px 0;
@@ -1603,6 +1748,26 @@ body {
     font-size: 11px;
     margin-left: 8px;
     white-space: nowrap;
+}
+
+.role-sub-setting {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 4px 0 4px 28px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.role-sub-setting .btn-tiny {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 4px;
+    min-width: unset;
 }
 
 /* Meeting & Voting Settings */
@@ -1632,14 +1797,11 @@ body {
 
 /* Sabotage Alert Banner */
 .sabotage-alert {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
     background: linear-gradient(180deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.9) 100%);
-    padding: 20px;
+    padding: 15px;
     text-align: center;
-    z-index: 2000;
+    border-radius: 12px;
+    margin-bottom: 10px;
     animation: sabotage-pulse 1s ease-in-out infinite;
 }
 

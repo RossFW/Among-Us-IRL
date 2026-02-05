@@ -70,6 +70,12 @@ async def manifest():
     }
 
 
+@app.get("/test", response_class=HTMLResponse)
+async def test_page(request: Request):
+    """Test mode: auto-create/join a game with code TEST for quick iteration."""
+    return templates.TemplateResponse("pages/test_redirect.html", {"request": request})
+
+
 @app.get("/health")
 async def health():
     """Health check endpoint."""

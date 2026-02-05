@@ -41,9 +41,9 @@
             <div class="advanced-roles-settings">
                 <div class="section-header" onclick="toggleAdvancedRoles()">
                     <h4>Advanced Roles</h4>
-                    <span id="advanced-roles-toggle-icon">+</span>
+                    <span id="advanced-roles-toggle-icon">-</span>
                 </div>
-                <div id="advanced-roles-content" style="display: none;">
+                <div id="advanced-roles-content" style="display: block;">
                     <!-- Crewmate Variants -->
                     <div class="role-category">
                         <h5 class="category-crew">Crewmate Variants</h5>
@@ -66,7 +66,7 @@
                                 <input type="checkbox" id="role-captain" onchange="toggleAdvancedRole('captain')">
                                 <span>Captain</span>
                             </label>
-                            <span class="role-desc">Extra emergency meeting</span>
+                            <span class="role-desc">Remote meeting from anywhere</span>
                         </div>
                         <div class="role-config-item">
                             <label class="toggle">
@@ -78,7 +78,7 @@
                         <div class="role-config-item">
                             <label class="toggle">
                                 <input type="checkbox" id="role-nice_guesser" onchange="toggleAdvancedRole('nice_guesser')">
-                                <span>Nice Guesser</span>
+                                <span>Bounty Hunter</span>
                             </label>
                             <span class="role-desc">Guess roles (risky!)</span>
                         </div>
@@ -96,6 +96,13 @@
                             </label>
                             <span class="role-desc">Swap votes between players</span>
                         </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-noise_maker" onchange="toggleAdvancedRole('noise_maker')">
+                                <span>Noise Maker</span>
+                            </label>
+                            <span class="role-desc">Choose who finds you</span>
+                        </div>
                     </div>
 
                     <!-- Impostor Variants -->
@@ -104,14 +111,14 @@
                         <div class="role-config-item">
                             <label class="toggle">
                                 <input type="checkbox" id="role-evil_guesser" onchange="toggleAdvancedRole('evil_guesser')">
-                                <span>Evil Guesser</span>
+                                <span>Riddler</span>
                             </label>
                             <span class="role-desc">Guess roles (risky!)</span>
                         </div>
                         <div class="role-config-item">
                             <label class="toggle">
                                 <input type="checkbox" id="role-bounty_hunter" onchange="toggleAdvancedRole('bounty_hunter')">
-                                <span>Bounty Hunter</span>
+                                <span>Rampager</span>
                             </label>
                             <span class="role-desc">Faster kills on target</span>
                         </div>
@@ -153,14 +160,13 @@
                                 <input type="checkbox" id="role-vulture" onchange="toggleAdvancedRole('vulture')">
                                 <span>Vulture</span>
                             </label>
-                            <span class="role-desc">Eat 3 bodies to win</span>
-                        </div>
-                        <div class="role-config-item">
-                            <label class="toggle">
-                                <input type="checkbox" id="role-noise_maker" onchange="toggleAdvancedRole('noise_maker')">
-                                <span>Noise Maker</span>
-                            </label>
-                            <span class="role-desc">Choose who finds you</span>
+                            <span class="role-desc">Eat bodies to win</span>
+                            <div class="role-sub-setting" id="vulture-eat-setting" style="display: none;">
+                                <span>Bodies needed:</span>
+                                <button class="btn btn-tiny" onclick="adjustSetting('vulture_eat_count', -1)">-</button>
+                                <span id="vulture-eat-count-display">3</span>
+                                <button class="btn btn-tiny" onclick="adjustSetting('vulture_eat_count', 1)">+</button>
+                            </div>
                         </div>
                     </div>
 
@@ -213,9 +219,9 @@
             <div class="sabotage-settings">
                 <div class="section-header" onclick="toggleSabotageSettings()">
                     <h4>Sabotage</h4>
-                    <span id="sabotage-toggle-icon">+</span>
+                    <span id="sabotage-toggle-icon">-</span>
                 </div>
-                <div id="sabotage-settings-content" style="display: none;">
+                <div id="sabotage-settings-content" style="display: block;">
                     <label class="toggle">
                         <input type="checkbox" id="toggle-sabotage" onchange="toggleSabotageSetting()">
                         <span>Enable Sabotage</span>
@@ -307,6 +313,14 @@
                                 <button class="btn-small" onclick="adjustSetting('discussion_time', 5)">+</button>
                             </div>
                         </div>
+                        <div class="setting">
+                            <label>Results Display Time</label>
+                            <div class="number-control">
+                                <button class="btn-small" onclick="adjustSetting('vote_results_duration', -5)">-</button>
+                                <span class="timer-value"><span id="setting-vote-results-duration">10</span>s</span>
+                                <button class="btn-small" onclick="adjustSetting('vote_results_duration', 5)">+</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -346,25 +360,25 @@
         </div>
     </div>
 
-    <!-- Sabotage Alert Banner (fixed at top when sabotage active) -->
-    <div id="sabotage-alert" class="sabotage-alert" style="display: none;">
-        <div class="sabotage-alert-content">
-            <div class="sabotage-name" id="active-sabotage-name">LIGHTS OUT!</div>
-            <div class="sabotage-timer" id="active-sabotage-timer" style="display: none;">
-                <span id="sabotage-remaining">45</span>s
-            </div>
-            <div class="sabotage-fix-info" id="sabotage-fix-info"></div>
-            <button class="btn btn-success" id="fix-sabotage-btn" onclick="fixSabotage()">FIX</button>
-            <button class="btn btn-success" id="hold-sabotage-btn" style="display: none;"
-                onmousedown="holdReactorStart()" onmouseup="holdReactorEnd()"
-                ontouchstart="holdReactorStart()" ontouchend="holdReactorEnd()">
-                HOLD TO FIX
-            </button>
-        </div>
-    </div>
-
     <!-- Game Screen -->
     <div id="game-screen" class="screen" style="display: none;">
+        <!-- Sabotage Alert Banner (above tasks, pushes content down) -->
+        <div id="sabotage-alert" class="sabotage-alert" style="display: none;">
+            <div class="sabotage-alert-content">
+                <div class="sabotage-name" id="active-sabotage-name">LIGHTS OUT!</div>
+                <div class="sabotage-timer" id="active-sabotage-timer" style="display: none;">
+                    <span id="sabotage-remaining">45</span>s
+                </div>
+                <div class="sabotage-fix-info" id="sabotage-fix-info"></div>
+                <button class="btn btn-success" id="fix-sabotage-btn" onclick="fixSabotage()">FIX</button>
+                <button class="btn btn-success" id="hold-sabotage-btn" style="display: none;"
+                    onmousedown="holdReactorStart()" onmouseup="holdReactorEnd()"
+                    ontouchstart="holdReactorStart()" ontouchend="holdReactorEnd()">
+                    HOLD TO FIX
+                </button>
+            </div>
+        </div>
+
         <!-- Tasks at top (visible immediately) -->
         <div class="tasks-section">
             <h3>Your Tasks</h3>
@@ -383,6 +397,9 @@
             </button>
             <button class="btn btn-secondary" id="map-btn" onclick="showMapGallery()">
                 MAP
+            </button>
+            <button class="btn btn-secondary" id="roles-btn" onclick="showRoleGuide()">
+                ROLES
             </button>
         </div>
 
@@ -404,15 +421,52 @@
             </div>
 
             <div class="role-display" id="role-display">
+                <span class="role-team" id="role-team">CREWMATE</span>
                 <span class="role-label">You are</span>
                 <span class="role-name" id="role-name">CREWMATE</span>
                 <p class="role-description" id="role-description"></p>
             </div>
 
-            <!-- Jester voted out button - below role card, only visible for Jester -->
+            <!-- Role ability buttons - below role card, only visible for specific roles -->
             <button class="btn btn-jester btn-large" id="jester-voted-btn" onclick="jesterVotedOut()" style="display: none;">
                 I WAS VOTED OUT!
             </button>
+
+            <!-- Engineer: Fix sabotage remotely (one use) -->
+            <button class="btn btn-ability btn-engineer-fix btn-large" id="engineer-fix-btn" onclick="engineerFix()" style="display: none;">
+                FIX SABOTAGE REMOTELY
+            </button>
+
+            <!-- Captain: Remote meeting from anywhere (one use) -->
+            <button class="btn btn-ability btn-captain-meeting btn-large" id="captain-meeting-btn" onclick="captainMeeting()" style="display: none;">
+                REMOTE MEETING
+            </button>
+
+            <!-- Vulture: Eat body -->
+            <div id="vulture-eat-section" class="ability-section" style="display: none;">
+                <div class="vulture-progress">
+                    <span id="vulture-count">0</span> / <span id="vulture-needed">3</span> bodies eaten
+                </div>
+                <div id="vulture-body-list" class="vulture-body-list">
+                    <!-- Populated with dead players -->
+                </div>
+            </div>
+
+            <!-- Rampager: Target display and "Was it you?" flow -->
+            <div id="bounty-hunter-section" class="ability-section" style="display: none;">
+                <div class="bounty-target-display" style="background: rgba(185,28,28,0.2); border: 1px solid #b91c1c; border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center;">
+                    <span style="color: #94a3b8; font-size: 12px;">TARGET</span>
+                    <div id="bounty-target-name" style="color: #ef4444; font-size: 20px; font-weight: bold;"></div>
+                    <div id="bounty-kills-display" style="color: #94a3b8; font-size: 12px; margin-top: 4px;"></div>
+                </div>
+                <div id="bounty-was-it-you" style="display: none; text-align: center; margin-top: 8px;">
+                    <div id="bounty-prompt-text" style="color: #fbbf24; font-size: 14px; font-weight: bold; margin-bottom: 8px;"></div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-large" onclick="bountyKillClaim(true)" style="flex: 1; background: #22c55e; color: white;">YES</button>
+                        <button class="btn btn-large" onclick="bountyKillClaim(false)" style="flex: 1; background: #6b7280; color: white;">NO</button>
+                    </div>
+                </div>
+            </div>
 
             <div id="fellow-impostors" class="fellow-impostors" style="display: none;">
                 <span class="label">Fellow Impostors:</span>
@@ -454,6 +508,7 @@
             <h1 id="meeting-title">MEETING</h1>
             <p id="meeting-caller"></p>
         </div>
+        <button class="btn btn-secondary btn-small-inline" onclick="showRoleGuide()" style="margin: 4px 0 4px 12px; font-size: 11px; padding: 3px 10px; opacity: 0.7;">Role Guide</button>
 
         <!-- Gathering Phase (waiting for caller to start meeting) -->
         <div id="gathering-section" style="display: none;">
@@ -495,6 +550,34 @@
             <div class="vote-feed" id="vote-feed" style="display: none;">
                 <!-- Shows "Player voted for Target" entries -->
             </div>
+            <!-- Swapper UI -->
+            <div id="swapper-section" style="display: none; margin-top: 15px; padding: 10px; background: rgba(236,72,153,0.1); border: 1px solid #ec4899; border-radius: 8px;">
+                <h4 style="color: #ec4899; margin: 0 0 8px 0; font-size: 14px;">SWAP VOTES</h4>
+                <div id="swapper-controls">
+                    <button class="btn btn-secondary" id="swap-player1-btn" onclick="openSwapSelect(1)" style="width: 100%; margin-bottom: 6px; font-size: 13px;">[Select Player 1]</button>
+                    <span style="color: #94a3b8; display: block; text-align: center; font-size: 12px;">&#8593; swap with &#8595;</span>
+                    <button class="btn btn-secondary" id="swap-player2-btn" onclick="openSwapSelect(2)" style="width: 100%; margin-top: 6px; margin-bottom: 8px; font-size: 13px;">[Select Player 2]</button>
+                    <button class="btn btn-primary" id="confirm-swap-btn" onclick="confirmSwap()" disabled style="width: 100%; font-size: 13px;">CONFIRM SWAP</button>
+                </div>
+                <div id="swapper-result" style="display: none; color: #ec4899; text-align: center; font-size: 14px; padding: 8px;"></div>
+            </div>
+            <!-- Swap Player Select Modal -->
+            <div id="swap-select-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1001; justify-content: center; align-items: center;">
+                <div style="background: #1e293b; border-radius: 12px; padding: 15px; max-width: 300px; width: 90%;">
+                    <h4 style="color: #ec4899; margin: 0 0 10px 0;">Select Player</h4>
+                    <div id="swap-select-options"></div>
+                    <button class="btn btn-secondary" onclick="closeSwapSelect()" style="width: 100%; margin-top: 8px;">Cancel</button>
+                </div>
+            </div>
+            <!-- Guesser Role Select Modal -->
+            <div id="guesser-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1002; justify-content: center; align-items: center;">
+                <div style="background: #1e293b; border-radius: 12px; padding: 15px; max-width: 320px; width: 90%; max-height: 70vh; overflow-y: auto;">
+                    <h4 style="color: #14b8a6; margin: 0 0 5px 0;">Guess Role</h4>
+                    <p id="guesser-target-label" style="color: #94a3b8; font-size: 13px; margin: 0 0 10px 0;"></p>
+                    <div id="guesser-role-options"></div>
+                    <button class="btn btn-secondary" onclick="closeGuesserModal()" style="width: 100%; margin-top: 8px;">Cancel</button>
+                </div>
+            </div>
         </div>
 
         <!-- Vote Results Section -->
@@ -502,6 +585,7 @@
             <h3>Vote Results</h3>
             <div id="vote-results-list"></div>
             <div id="vote-outcome"></div>
+            <div id="vote-results-countdown" style="color: #94a3b8; margin-top: 10px; font-size: 14px;"></div>
         </div>
 
         <!-- Players Lists (shown when voting disabled) -->
@@ -624,6 +708,38 @@
     </div>
 </div>
 
+<!-- Noise Maker Selection Modal -->
+<div id="noise-maker-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 350px;">
+        <div class="modal-header">
+            <h2 style="color: #f59e0b;">Select Who Killed You</h2>
+        </div>
+        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 10px;">They will "find" your body and trigger a meeting.</p>
+        <div id="noise-maker-player-list" style="max-height: 50vh; overflow-y: auto;">
+            <!-- Populated with alive players -->
+        </div>
+    </div>
+</div>
+
+<style>
+.role-guide-desc.expanded {
+    max-height: 100px !important;
+    margin-top: 6px !important;
+}
+</style>
+<!-- Role Guide Modal -->
+<div id="role-guide-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Role Guide</h2>
+            <button class="modal-close" onclick="hideRoleGuide()">&times;</button>
+        </div>
+        <div id="role-guide-content" style="padding: 10px;">
+            <p style="color: #94a3b8;">Loading...</p>
+        </div>
+    </div>
+</div>
+
 <!-- Game sounds -->
 <audio id="sound-game-start" preload="auto">
     <source src="/static/sounds/Start_of_game_role_reveal.mp3" type="audio/mpeg">
@@ -644,6 +760,9 @@
 </audio>
 <audio id="sound-lonewolf-win" preload="auto">
     <source src="/static/sounds/Wincon Sounds/Lone_wolf_win.mp3" type="audio/mpeg">
+</audio>
+<audio id="sound-vulture-win" preload="auto">
+    <source src="/static/sounds/Wincon Sounds/Vulture_win.mp3" type="audio/mpeg">
 </audio>
 
 <!-- Voting sounds -->
@@ -667,20 +786,32 @@
 <audio id="sound-reactor-fixed" preload="auto">
     <source src="/static/sounds/Sabotage/Reactor_Oxygen_on.mp3" type="audio/mpeg">
 </audio>
+<audio id="sound-death-meeting" preload="auto">
+    <source src="/static/sounds/Death_during_meeting.mp3" type="audio/mpeg">
+</audio>
 
 <script>
 const gameCode = '{{ code }}';
 const sessionToken = localStorage.getItem('session_token');
 const playerId = localStorage.getItem('player_id');
 
+// === Role Constants (single source of truth) ===
+const IMPOSTOR_SABOTAGE_ROLES = ['Impostor', 'Riddler', 'Rampager', 'Cleaner', 'Venter'];
+const REAL_TASK_ROLES = ['Crewmate', 'Sheriff', 'Engineer', 'Captain', 'Mayor', 'Bounty Hunter', 'Spy', 'Swapper', 'Noise Maker'];
+const GUESSER_ROLES = ['Bounty Hunter', 'Riddler'];
+const IMPOSTOR_SUBTYPES = ['Rampager', 'Riddler', 'Cleaner', 'Venter', 'Minion'];
+const KILL_COOLDOWN_ROLES = ['Impostor', 'Rampager', 'Sheriff', 'Lone Wolf'];
+
 let ws = null;
 let gameState = 'lobby';
 let isHost = false;
 let myRole = null;
 let hasUsedMeeting = false;  // Track if player used their one emergency meeting
-let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false, enable_sheriff: false, kill_cooldown: 45, impostor_kill_cooldown: 45, sheriff_shoot_cooldown: 45, lone_wolf_kill_cooldown: 45, enable_sabotage: false, sabotage_cooldown: 90, meeting_cooldown: 30, enable_voting: true, anonymous_voting: false, meeting_timer_duration: 120, meeting_warning_time: 30, discussion_time: 5, role_configs: {} };
+let settings = { tasks_per_player: 5, num_impostors: 2, enable_jester: false, enable_lone_wolf: false, enable_minion: false, enable_sheriff: false, kill_cooldown: 45, impostor_kill_cooldown: 45, sheriff_shoot_cooldown: 45, lone_wolf_kill_cooldown: 45, enable_sabotage: false, sabotage_cooldown: 90, meeting_cooldown: 30, enable_voting: true, anonymous_voting: false, meeting_timer_duration: 120, meeting_warning_time: 30, discussion_time: 5, vote_results_duration: 10, role_configs: {} };
 let killCooldownTimer = null;
 let cooldownEndTime = null;
+let bountyKills = 0;
+let bountyTargetId = null;
 let availableTasks = [];
 let allPlayers = [];
 
@@ -701,6 +832,7 @@ let meetingState = {
 // Timer intervals (kept separate for easy cleanup)
 let meetingTimerInterval = null;
 let discussionTimerInterval = null;
+let voteResultsTimerInterval = null;
 
 function resetMeetingState() {
     meetingState = {
@@ -723,6 +855,10 @@ function resetMeetingState() {
     if (discussionTimerInterval) {
         clearInterval(discussionTimerInterval);
         discussionTimerInterval = null;
+    }
+    if (voteResultsTimerInterval) {
+        clearInterval(voteResultsTimerInterval);
+        voteResultsTimerInterval = null;
     }
 }
 
@@ -754,7 +890,18 @@ function renderMeetingPhase() {
             gathering.style.display = 'block';
             // Show START MEETING only for caller
             const isCaller = playerId === meetingState.callerId;
-            document.getElementById('start-meeting-btn').style.display = isCaller ? 'block' : 'none';
+            const startBtn = document.getElementById('start-meeting-btn');
+            if (isCaller) {
+                startBtn.style.display = 'block';
+                startBtn.textContent = 'START MEETING';
+                // Disable briefly to prevent ghost clicks from screen transition
+                startBtn.disabled = true;
+                setTimeout(() => {
+                    startBtn.disabled = false;
+                }, 1200);
+            } else {
+                startBtn.style.display = 'none';
+            }
             document.getElementById('gathering-message').style.display = isCaller ? 'none' : 'block';
             break;
 
@@ -766,7 +913,8 @@ function renderMeetingPhase() {
 
         case 'results':
             results.style.display = 'block';
-            endBtn.style.display = 'block';
+            // END MEETING button hidden initially - shown after vote_results_duration countdown
+            // (handleVoteResults starts the countdown)
             break;
     }
 }
@@ -898,6 +1046,11 @@ function restoreMeetingState(activeMeeting) {
         } else {
             outcomeEl.textContent = 'No one was ejected.';
         }
+        // On reconnect during results, show END MEETING immediately for everyone
+        const endBtn = document.getElementById('end-meeting-btn');
+        const countdownEl = document.getElementById('vote-results-countdown');
+        endBtn.style.display = 'block';
+        if (countdownEl) countdownEl.textContent = '';
     }
 
     // Render phase UI
@@ -1004,6 +1157,23 @@ function handleMessage(msg) {
         case 'vote_results':
             handleVoteResults(msg.payload);
             break;
+        case 'body_eaten':
+            // Dead player notification that vulture ate their body
+            if (msg.payload && msg.payload.message) {
+                showError(msg.payload.message);
+            }
+            break;
+        case 'guesser_result':
+            handleGuesserResult(msg.payload);
+            break;
+        case 'bounty_target_update':
+            if (myRole === 'Rampager' && msg.payload) {
+                bountyTargetId = msg.payload.target_id;
+                bountyKills = msg.payload.bounty_kills || bountyKills;
+                document.getElementById('bounty-target-name').textContent = msg.payload.target_name || 'No target';
+                updateBountyKillButton();
+            }
+            break;
     }
 }
 
@@ -1020,8 +1190,8 @@ function handleStateSync(payload) {
     if (payload.game_state === 'playing') {
         showScreen('game-screen');
 
-        // Show sabotage UI for impostors
-        if (myRole === 'Impostor' && settings.enable_sabotage) {
+        // Show sabotage UI for impostor-aligned roles
+        if (IMPOSTOR_SABOTAGE_ROLES.includes(myRole) && settings.enable_sabotage) {
             showImpostorSabotageUI();
         }
 
@@ -1140,6 +1310,14 @@ async function adjustSetting(type, delta) {
         const current = settings.discussion_time || 5;
         const newVal = Math.max(0, Math.min(60, current + delta));  // 0-60 seconds
         update.discussion_time = newVal;
+    } else if (type === 'vote_results_duration') {
+        const current = settings.vote_results_duration || 10;
+        const newVal = Math.max(5, Math.min(30, current + delta));
+        update.vote_results_duration = newVal;
+    } else if (type === 'vulture_eat_count') {
+        const current = settings.vulture_eat_count || 3;
+        const newVal = Math.max(1, Math.min(10, current + delta));
+        update.vulture_eat_count = newVal;
     }
 
     await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
@@ -1186,6 +1364,26 @@ function updateMeetingButtonCooldown() {
     } else {
         btn.textContent = 'CALL MEETING';
         btn.disabled = activeSabotage !== null;  // Still disabled during sabotage
+    }
+
+    // Also update captain button cooldown if it exists
+    updateCaptainButtonCooldown();
+}
+
+function updateCaptainButtonCooldown() {
+    const btn = document.getElementById('captain-meeting-btn');
+    if (!btn || btn.style.display === 'none') return;
+
+    // If already used, keep showing "REMOTE MEETING USED"
+    if (btn.textContent === 'REMOTE MEETING USED') return;
+
+    if (meetingCooldownEnd && Date.now() < meetingCooldownEnd) {
+        const remaining = Math.ceil((meetingCooldownEnd - Date.now()) / 1000);
+        btn.textContent = `REMOTE MEETING (${remaining}s)`;
+        btn.disabled = true;
+    } else {
+        btn.textContent = 'REMOTE MEETING';
+        btn.disabled = activeSabotage !== null;
     }
 }
 
@@ -1238,6 +1436,12 @@ async function toggleAdvancedRole(roleKey) {
     const checkbox = document.getElementById(`role-${roleKey}`);
     const enabled = checkbox.checked;
 
+    // Show/hide vulture eat count sub-setting
+    if (roleKey === 'vulture') {
+        const vultureSetting = document.getElementById('vulture-eat-setting');
+        if (vultureSetting) vultureSetting.style.display = enabled ? 'flex' : 'none';
+    }
+
     await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1267,6 +1471,17 @@ function updateAdvancedRolesUI() {
     document.getElementById('toggle-lonewolf').checked = settings.enable_lone_wolf;
     document.getElementById('toggle-minion').checked = settings.enable_minion;
     document.getElementById('toggle-sheriff').checked = settings.enable_sheriff;
+
+    // Show/hide vulture eat count sub-setting
+    const vultureConfig = roleConfigs['vulture'] || { enabled: false };
+    const vultureSetting = document.getElementById('vulture-eat-setting');
+    if (vultureSetting) {
+        vultureSetting.style.display = vultureConfig.enabled ? 'flex' : 'none';
+    }
+    const vultureCountDisplay = document.getElementById('vulture-eat-count-display');
+    if (vultureCountDisplay) {
+        vultureCountDisplay.textContent = settings.vulture_eat_count || 3;
+    }
 }
 
 async function toggleSabotageSetting() {
@@ -1392,14 +1607,18 @@ function updateMeetingSettingsUI() {
     if (discussionDisplay) {
         discussionDisplay.textContent = settings.discussion_time ?? 5;
     }
+    const resultsTimerDisplay = document.getElementById('setting-vote-results-duration');
+    if (resultsTimerDisplay) {
+        resultsTimerDisplay.textContent = settings.vote_results_duration || 10;
+    }
 }
 
 function showImpostorSabotageUI() {
     const section = document.getElementById('impostor-sabotage-section');
     if (!section) return;
 
-    // Show for impostors when sabotage is enabled
-    if (myRole === 'Impostor' && settings.enable_sabotage) {
+    // Show for all impostor-aligned roles (except Minion) when sabotage is enabled
+    if (IMPOSTOR_SABOTAGE_ROLES.includes(myRole) && settings.enable_sabotage) {
         section.style.display = 'block';
         updateImpostorSabotageButtons();
     } else {
@@ -1456,6 +1675,9 @@ async function startSabotage(index) {
 
 function handleSabotageStarted(payload) {
     activeSabotage = payload;
+
+    // Update Engineer button if applicable
+    updateEngineerButton();
 
     // Show alert
     document.getElementById('sabotage-alert').style.display = 'block';
@@ -1527,6 +1749,9 @@ function startSabotageTimer(seconds) {
 function handleSabotageResolved(payload) {
     activeSabotage = null;
 
+    // Update Engineer button if applicable
+    updateEngineerButton();
+
     // Hide alert (except for lights which persists - but we still hide alert UI)
     document.getElementById('sabotage-alert').style.display = 'none';
 
@@ -1552,8 +1777,7 @@ function handleSabotageResolved(payload) {
     sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
 
     // Start the cooldown timer to update UI (for impostor-aligned roles)
-    const impostorRoles = ['Impostor', 'Evil Guesser', 'Bounty Hunter', 'Cleaner', 'Venter'];
-    if (impostorRoles.includes(myRole)) {
+    if (IMPOSTOR_SABOTAGE_ROLES.includes(myRole)) {
         startSabotageCooldownTimer();
     }
 
@@ -1653,16 +1877,16 @@ function handleGameStart(payload) {
     // Play scary horror theme on game start
     playSound('sound-game-start');
 
-    // Start kill cooldown timer at game start for impostor/sheriff/lone wolf
-    if (myRole === 'Impostor' || myRole === 'Sheriff' || myRole === 'Lone Wolf') {
+    // Start kill cooldown timer at game start for impostor/bounty hunter/sheriff/lone wolf
+    if (KILL_COOLDOWN_ROLES.includes(myRole)) {
         startCooldown();
     }
 
     // Start meeting cooldown at game start
     startMeetingCooldown();
 
-    // Show sabotage UI for impostors (alive or dead can use it)
-    if (myRole === 'Impostor' && settings.enable_sabotage) {
+    // Show sabotage UI for impostor-aligned roles (alive or dead can use it)
+    if (IMPOSTOR_SABOTAGE_ROLES.includes(myRole) && settings.enable_sabotage) {
         showImpostorSabotageUI();
         // Start sabotage cooldown timer display
         sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
@@ -1674,6 +1898,7 @@ function updateRoleUI(roleInfo) {
     const roleDisplay = document.getElementById('role-display');
     const roleName = document.getElementById('role-name');
     const roleDesc = document.getElementById('role-description');
+    const roleTeam = document.getElementById('role-team');
     const taskList = document.getElementById('task-list');
     const fellowImpostors = document.getElementById('fellow-impostors');
     const roleBadge = document.getElementById('role-badge');
@@ -1686,13 +1911,56 @@ function updateRoleUI(roleInfo) {
     roleNameBadge.textContent = roleInfo.role.toUpperCase();
     roleBadge.className = 'role-badge role-' + roleInfo.role.toLowerCase().replace(' ', '-');
 
+    // Team categorization
+    const teams = {
+        // Crewmate team
+        'Crewmate': 'CREWMATE',
+        'Sheriff': 'CREWMATE',
+        'Engineer': 'CREWMATE',
+        'Captain': 'CREWMATE',
+        'Mayor': 'CREWMATE',
+        'Bounty Hunter': 'CREWMATE',
+        'Spy': 'CREWMATE',
+        'Swapper': 'CREWMATE',
+        // Impostor team
+        'Impostor': 'IMPOSTOR',
+        'Riddler': 'IMPOSTOR',
+        'Rampager': 'IMPOSTOR',
+        'Cleaner': 'IMPOSTOR',
+        'Venter': 'IMPOSTOR',
+        'Minion': 'IMPOSTOR',
+        // Neutral
+        'Jester': 'NEUTRAL',
+        'Lone Wolf': 'NEUTRAL',
+        'Vulture': 'NEUTRAL',
+        'Noise Maker': 'CREWMATE'
+    };
+    const team = teams[roleInfo.role] || 'CREWMATE';
+    roleTeam.textContent = team;
+    roleTeam.className = 'role-team team-' + team.toLowerCase();
+
     const descriptions = {
+        // Crewmate team
         'Crewmate': 'Complete your tasks. Find the impostors.',
+        'Sheriff': 'Complete tasks. Whisper to shoot someone - miss and you die!',
+        'Engineer': 'You can fix ONE sabotage remotely per game.',
+        'Captain': 'Call a remote meeting from anywhere (one use per game).',
+        'Mayor': 'Your vote counts twice during meetings.',
+        'Bounty Hunter': 'During voting, guess a player\'s role. Wrong guess = you die.',
+        'Spy': 'You appear as an impostor to the impostor team.',
+        'Swapper': 'Swap votes between two players. Cannot call emergency meetings.',
+        // Impostor team
         'Impostor': 'Eliminate crewmates. Don\'t get caught.',
+        'Riddler': 'Like impostor, but can guess roles during voting. Wrong = you die.',
+        'Rampager': 'Shorter cooldown killing your target, longer for others.',
+        'Cleaner': 'You can clean bodies - drag them elsewhere before they\'re found.',
+        'Venter': 'You can "vent" - access doors and walk outside the building.',
+        'Minion': 'Help the impostors eliminate crewmates. You don\'t know who they are. You cannot kill.',
+        // Neutral
         'Jester': 'Get yourself voted out to win!',
         'Lone Wolf': 'Survive until you\'re the last one standing.',
-        'Minion': 'Help the impostors win. You cannot kill.',
-        'Sheriff': 'Complete tasks. Whisper to shoot someone - miss and you die!'
+        'Vulture': `Eat ${roleInfo.bodies_needed || 3} bodies to win. Touch body & tell dead player to act alive.`,
+        'Noise Maker': 'When killed, select who "found" you (fake body report).'
     };
     roleDesc.textContent = descriptions[roleInfo.role] || '';
 
@@ -1714,10 +1982,69 @@ function updateRoleUI(roleInfo) {
 
     // Show Jester voted out button only for Jesters
     const jesterBtn = document.getElementById('jester-voted-btn');
-    if (roleInfo.role === 'Jester') {
-        jesterBtn.style.display = 'block';
+    jesterBtn.style.display = roleInfo.role === 'Jester' ? 'block' : 'none';
+
+    // Show Engineer fix button only for Engineers
+    const engineerBtn = document.getElementById('engineer-fix-btn');
+    if (roleInfo.role === 'Engineer') {
+        engineerBtn.style.display = 'block';
+        if (roleInfo.remote_fix_available === false) {
+            engineerBtn.disabled = true;
+            engineerBtn.textContent = 'FIX USED';
+        } else if (!activeSabotage) {
+            engineerBtn.disabled = true;
+            engineerBtn.textContent = 'NO ACTIVE SABOTAGE';
+        } else {
+            engineerBtn.disabled = false;
+            engineerBtn.textContent = 'FIX SABOTAGE REMOTELY';
+        }
     } else {
-        jesterBtn.style.display = 'none';
+        engineerBtn.style.display = 'none';
+    }
+
+    // Show Captain remote meeting button only for Captains
+    const captainBtn = document.getElementById('captain-meeting-btn');
+    if (roleInfo.role === 'Captain') {
+        captainBtn.style.display = 'block';
+        if (roleInfo.extra_meeting_available === false) {
+            captainBtn.disabled = true;
+            captainBtn.textContent = 'REMOTE MEETING USED';
+        } else {
+            captainBtn.disabled = false;
+            captainBtn.textContent = 'REMOTE MEETING';
+        }
+    } else {
+        captainBtn.style.display = 'none';
+    }
+
+    // Show Vulture eat section only for Vultures
+    const vultureSection = document.getElementById('vulture-eat-section');
+    if (roleInfo.role === 'Vulture') {
+        vultureSection.style.display = 'block';
+        document.getElementById('vulture-count').textContent = roleInfo.bodies_eaten || 0;
+        document.getElementById('vulture-needed').textContent = roleInfo.bodies_needed || 3;
+        vultureEatenBodyIds = roleInfo.eaten_body_ids || [];
+        vultureIneligibleBodyIds = roleInfo.ineligible_body_ids || [];
+        updateVultureBodyList();
+    } else {
+        vultureSection.style.display = 'none';
+    }
+
+    // Show Rampager section
+    const bountySection = document.getElementById('bounty-hunter-section');
+    if (roleInfo.role === 'Rampager') {
+        bountySection.style.display = 'block';
+        bountyKills = roleInfo.bounty_kills || 0;
+        if (roleInfo.bounty_target) {
+            document.getElementById('bounty-target-name').textContent = roleInfo.bounty_target.name;
+            bountyTargetId = roleInfo.bounty_target.id;
+        } else {
+            document.getElementById('bounty-target-name').textContent = 'No target';
+            bountyTargetId = null;
+        }
+        updateBountyKillButton();
+    } else {
+        bountySection.style.display = 'none';
     }
 }
 
@@ -1735,8 +2062,8 @@ async function toggleTask(taskId) {
 
     const isCompleted = taskEl.classList.contains('completed');
 
-    // For Crewmates and Sheriffs, update server (real tasks)
-    if (myRole === 'Crewmate' || myRole === 'Sheriff') {
+    // Crew-aligned roles (except Minion) have real tasks that update the server
+    if (REAL_TASK_ROLES.includes(myRole)) {
         const endpoint = isCompleted ? 'uncomplete' : 'complete';
         try {
             const response = await fetch(`/api/tasks/${taskId}/${endpoint}?session_token=${sessionToken}`, {
@@ -1821,6 +2148,7 @@ async function reportBody() {
 function handleMeetingStart(payload) {
     // ALWAYS reset meeting state first - clean slate!
     resetMeetingState();
+    guesserDead = false;  // Reset guesser state for new meeting
 
     // Update consolidated meeting state
     meetingState.phase = 'gathering';
@@ -1849,6 +2177,15 @@ function handleMeetingStart(payload) {
 
     updateProgress(payload.task_percentage);
 
+    // Mark all currently dead bodies as ineligible for vulture (discovered in meeting)
+    if (myRole === 'Vulture') {
+        payload.dead_players.forEach(p => {
+            if (!vultureIneligibleBodyIds.includes(p.id)) {
+                vultureIneligibleBodyIds.push(p.id);
+            }
+        });
+    }
+
     // Populate player lists
     document.getElementById('alive-list').innerHTML = payload.alive_players.map(p => `
         <div class="player-item">${p.name}</div>
@@ -1862,6 +2199,17 @@ function handleMeetingStart(payload) {
     const voteFeed = document.getElementById('vote-feed');
     voteFeed.innerHTML = '';
     voteFeed.style.display = 'none';
+
+    // Close Noise Maker selection modal if open (edge case: another player reports body first)
+    const noiseMakerModal = document.getElementById('noise-maker-modal');
+    if (noiseMakerModal) {
+        noiseMakerModal.style.display = 'none';
+    }
+
+    // Hide lights sabotage banner during meeting (will re-show on meeting end if still active)
+    if (activeSabotage && activeSabotage.type === 'lights') {
+        document.getElementById('sabotage-alert').style.display = 'none';
+    }
 
     // Render UI based on phase
     renderMeetingPhase();
@@ -1935,13 +2283,23 @@ function handleVotingStarted(payload) {
     const voteOptions = document.getElementById('vote-options');
     const skipBtn = document.getElementById('skip-vote-btn');
 
+    const isGuesser = GUESSER_ROLES.includes(myRole);
+
+    // Check if any guesser role is enabled in game settings
+    const roleConfigs = settings.role_configs || {};
+    const hasGuessersInGame = (roleConfigs.nice_guesser && roleConfigs.nice_guesser.enabled) ||
+                              (roleConfigs.evil_guesser && roleConfigs.evil_guesser.enabled);
+
     if (canVote) {
         // Populate vote options with alive players (including self - Jester strategy!)
         voteOptions.innerHTML = payload.alive_players
             .map(p => `
-                <button class="btn vote-btn" onclick="castVote('${p.id}')" ${discussionTime > 0 ? 'disabled' : ''}>
-                    ${p.name}
-                </button>
+                <div class="vote-btn-wrapper" style="display: flex; gap: 4px; margin-bottom: 4px;">
+                    <button class="btn vote-btn" onclick="castVote('${p.id}')" ${discussionTime > 0 ? 'disabled' : ''} style="flex: 1;">
+                        ${p.name}
+                    </button>
+                    ${hasGuessersInGame && p.id !== playerId ? `<button class="btn guesser-guess-btn" onclick="handleGuessButton('${p.id}', '${p.name}')" ${discussionTime > 0 ? 'disabled' : ''} style="width: 36px; min-width: 36px; padding: 0; font-size: 16px; background: #14b8a6;">?</button>` : ''}
+                </div>
             `).join('');
 
         // Setup skip button
@@ -1980,9 +2338,9 @@ function handleVotingStarted(payload) {
                 // Play "time to vote" sound when voting begins
                 playSound('sound-time-to-vote');
 
-                // Enable all vote buttons
+                // Enable all vote buttons (including guesser buttons)
                 if (canVote) {
-                    voteOptions.querySelectorAll('.vote-btn').forEach(btn => btn.disabled = false);
+                    voteOptions.querySelectorAll('.vote-btn, .guesser-guess-btn').forEach(btn => btn.disabled = false);
                     skipBtn.disabled = false;
                 }
             }
@@ -1996,6 +2354,23 @@ function handleVotingStarted(payload) {
 
         // Start meeting timer
         startMeetingTimer(timerDuration, payload.warning_time || 30);
+    }
+
+    // Show Swapper UI if player is Swapper and alive
+    const swapperSection = document.getElementById('swapper-section');
+    if (myRole === 'Swapper' && canVote) {
+        swapperSection.style.display = 'block';
+        swapPlayer1 = null;
+        swapPlayer2 = null;
+        swapConfirmed = false;
+        document.getElementById('swap-player1-btn').textContent = '[Select Player 1]';
+        document.getElementById('swap-player2-btn').textContent = '[Select Player 2]';
+        document.getElementById('confirm-swap-btn').disabled = true;
+        document.getElementById('swapper-controls').style.display = 'block';
+        document.getElementById('swapper-result').style.display = 'none';
+        swapAlivePlayers = payload.alive_players;
+    } else {
+        swapperSection.style.display = 'none';
     }
 }
 
@@ -2147,15 +2522,18 @@ function handleVoteResults(payload) {
     // Get votes_by_target for showing who voted for whom
     const votesByTarget = payload.votes_by_target || {};
 
+    const swappedNames = payload.swapped_names || [];
+
     for (const [name, count] of sortedResults) {
         const isEliminated = payload.eliminated_name === name;
+        const isSwapped = swappedNames.includes(name);
         const voters = votesByTarget[name] || [];
         const votersText = voters.length > 0 ? `(${voters.join(', ')})` : '';
 
         resultsHtml += `
             <div class="vote-result-item ${isEliminated ? 'eliminated' : ''}">
                 <div class="vote-result-main">
-                    <span class="vote-result-name">${name}</span>
+                    <span class="vote-result-name">${name}${isSwapped ? ' <span style="color: #ec4899; font-size: 12px;">(Swapped)</span>' : ''}</span>
                     <span class="vote-result-count">${count} vote${count !== 1 ? 's' : ''}</span>
                 </div>
                 ${votersText ? `<div class="vote-result-voters">${votersText}</div>` : ''}
@@ -2197,6 +2575,28 @@ function handleVoteResults(payload) {
     // Hide the old vote feed (we now show voters inline)
     const voteFeed = document.getElementById('vote-feed');
     voteFeed.style.display = 'none';
+
+    // Start vote results countdown before showing END MEETING button
+    const duration = settings.vote_results_duration || 10;
+    let remaining = duration;
+    const countdownEl = document.getElementById('vote-results-countdown');
+    const endBtn = document.getElementById('end-meeting-btn');
+    endBtn.style.display = 'none';
+    countdownEl.textContent = `Returning in ${remaining}s...`;
+
+    if (voteResultsTimerInterval) clearInterval(voteResultsTimerInterval);
+    voteResultsTimerInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(voteResultsTimerInterval);
+            voteResultsTimerInterval = null;
+            countdownEl.textContent = '';
+            // Show END MEETING button for everyone
+            endBtn.style.display = 'block';
+        } else {
+            countdownEl.textContent = `Returning in ${remaining}s...`;
+        }
+    }, 1000);
 }
 
 async function endMeeting() {
@@ -2215,8 +2615,20 @@ function handleMeetingEnd() {
 
     showScreen('game-screen');
 
-    // Reset kill cooldown timer after meeting for impostor/sheriff/lone wolf
-    if (myRole === 'Impostor' || myRole === 'Sheriff' || myRole === 'Lone Wolf') {
+    // Ensure dead players' buttons stay disabled after meeting
+    const me = allPlayers.find(p => p.id === playerId);
+    if (me && me.status === 'dead') {
+        document.getElementById('im-dead-btn').disabled = true;
+        document.getElementById('im-dead-btn').textContent = 'YOU ARE DEAD';
+        const meetBtn = document.getElementById('call-meeting-btn');
+        meetBtn.disabled = true;
+        meetBtn.textContent = 'YOU ARE DEAD';
+        meetBtn.className = 'btn btn-secondary';
+        document.getElementById('report-body-btn').disabled = true;
+    }
+
+    // Reset kill cooldown timer after meeting for impostor/bounty hunter/sheriff/lone wolf
+    if (KILL_COOLDOWN_ROLES.includes(myRole)) {
         startCooldown();
     }
 
@@ -2226,17 +2638,23 @@ function handleMeetingEnd() {
     // Re-show lights sabotage alert if still active (lights persists through meetings)
     if (activeSabotage && activeSabotage.type === 'lights') {
         document.getElementById('sabotage-alert').style.display = 'block';
+        playSound('sound-lights-sabotage');  // Remind players lights are still off
         // Disable call meeting during sabotage (if not already used)
         if (!hasUsedMeeting) {
             document.getElementById('call-meeting-btn').disabled = true;
         }
     }
 
-    // Reset sabotage cooldown after meeting for impostors
-    if (myRole === 'Impostor' && settings.enable_sabotage) {
+    // Reset sabotage cooldown after meeting for impostor-aligned roles
+    if (IMPOSTOR_SABOTAGE_ROLES.includes(myRole) && settings.enable_sabotage) {
         sabotageCooldownEnd = Date.now() + (settings.sabotage_cooldown * 1000);
         startSabotageCooldownTimer();
         updateImpostorSabotageButtons();
+    }
+
+    // Update vulture body list (ineligible bodies removed after meeting)
+    if (myRole === 'Vulture') {
+        updateVultureBodyList();
     }
 }
 
@@ -2244,14 +2662,23 @@ async function markDead() {
     if (!confirm('Are you sure you want to mark yourself as dead?')) return;
 
     try {
-        await fetch(`/api/players/${playerId}/die?session_token=${sessionToken}`, {
+        const resp = await fetch(`/api/players/${playerId}/die?session_token=${sessionToken}`, {
             method: 'POST'
         });
+        const data = await resp.json();
 
         document.getElementById('im-dead-btn').disabled = true;
         document.getElementById('im-dead-btn').textContent = 'YOU ARE DEAD';
-        document.getElementById('call-meeting-btn').disabled = true;
+        const deadMeetingBtn = document.getElementById('call-meeting-btn');
+        deadMeetingBtn.disabled = true;
+        deadMeetingBtn.textContent = 'YOU ARE DEAD';
+        deadMeetingBtn.className = 'btn btn-secondary';
         document.getElementById('report-body-btn').disabled = true;
+
+        // Noise Maker: show target selection modal
+        if (data.noise_maker) {
+            showNoiseMakerSelect();
+        }
     } catch (e) {
         showError('Failed to mark as dead');
     }
@@ -2269,6 +2696,449 @@ async function jesterVotedOut() {
         document.getElementById('jester-voted-btn').textContent = 'JESTER WINS!';
     } catch (e) {
         showError('Failed to claim victory');
+    }
+}
+
+// ==================== ROLE ABILITY FUNCTIONS ====================
+
+function updateEngineerButton() {
+    const btn = document.getElementById('engineer-fix-btn');
+    if (!btn || btn.style.display === 'none') return;
+    // Don't update if already used
+    if (btn.textContent === 'FIX USED') return;
+
+    if (activeSabotage) {
+        btn.disabled = false;
+        btn.textContent = 'FIX SABOTAGE REMOTELY';
+    } else {
+        btn.disabled = true;
+        btn.textContent = 'NO ACTIVE SABOTAGE';
+    }
+}
+
+async function engineerFix() {
+    const btn = document.getElementById('engineer-fix-btn');
+    if (btn.disabled) return;
+
+    if (!confirm('Use your ONE remote fix to resolve the active sabotage?')) return;
+
+    btn.disabled = true;
+    try {
+        const response = await fetch(`/api/games/${gameCode}/ability/engineer-fix?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            btn.textContent = 'FIX USED';
+        } else {
+            const data = await response.json();
+            showError(data.detail || 'Failed to fix sabotage');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showError('Failed to fix sabotage');
+        btn.disabled = false;
+    }
+}
+
+async function captainMeeting() {
+    const btn = document.getElementById('captain-meeting-btn');
+    if (btn.disabled) return;
+
+    // Check if sabotage is active
+    if (activeSabotage) {
+        showError('Cannot call meeting during sabotage!');
+        return;
+    }
+
+    // Respect meeting cooldown (button already shows countdown via updateCaptainButtonCooldown)
+    if (meetingCooldownEnd && Date.now() < meetingCooldownEnd) {
+        return;
+    }
+
+    btn.disabled = true;
+    try {
+        const response = await fetch(`/api/games/${gameCode}/ability/captain-meeting?session_token=${sessionToken}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            btn.textContent = 'REMOTE MEETING USED';
+        } else {
+            const data = await response.json();
+            showError(data.detail || 'Failed to call meeting');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showError('Failed to call meeting');
+        btn.disabled = false;
+    }
+}
+
+// ==================== RAMPAGER ====================
+
+function updateBountyKillButton() {
+    const section = document.getElementById('bounty-hunter-section');
+    if (!section || section.style.display === 'none') return;
+
+    const wasItYou = document.getElementById('bounty-was-it-you');
+    const killsDisplay = document.getElementById('bounty-kills-display');
+
+    // Update kills counter
+    if (killsDisplay) {
+        killsDisplay.textContent = bountyKills > 0 ? `${bountyKills} bounty kill${bountyKills !== 1 ? 's' : ''}` : '';
+    }
+
+    if (!bountyTargetId) {
+        wasItYou.style.display = 'none';
+        return;
+    }
+
+    const target = allPlayers.find(p => p.id === bountyTargetId);
+    if (target && target.status === 'dead') {
+        // Target died! Show "Was it you?" prompt
+        wasItYou.style.display = 'block';
+        document.getElementById('bounty-prompt-text').textContent =
+            `Your target ${target.name} is dead! Was it you?`;
+    } else {
+        wasItYou.style.display = 'none';
+    }
+}
+
+async function bountyKillClaim(claimed) {
+    const wasItYou = document.getElementById('bounty-was-it-you');
+    wasItYou.style.display = 'none';
+
+    try {
+        const resp = await fetch(`/api/games/${gameCode}/ability/bounty-kill?session_token=${sessionToken}&claimed=${claimed}`, {
+            method: 'POST'
+        });
+        const data = await resp.json();
+        if (data.success) {
+            bountyKills = data.bounty_kills;
+            bountyTargetId = data.new_target_id;
+            document.getElementById('bounty-target-name').textContent = data.new_target_name || 'No target';
+            updateBountyKillButton();
+        } else {
+            showError(data.detail || 'Failed');
+        }
+    } catch (e) {
+        showError('Failed to process bounty');
+}
+
+// ==================== SWAPPER ====================
+
+let swapPlayer1 = null;
+let swapPlayer2 = null;
+let swapConfirmed = false;
+let swapAlivePlayers = [];
+let swapSelectSlot = 0;  // Which slot we're selecting for (1 or 2)
+
+function openSwapSelect(slot) {
+    if (swapConfirmed) return;
+    swapSelectSlot = slot;
+    const modal = document.getElementById('swap-select-modal');
+    const options = document.getElementById('swap-select-options');
+    options.innerHTML = swapAlivePlayers.map(p => `
+        <button class="btn btn-secondary" onclick="selectSwapPlayer('${p.id}', '${p.name}')" style="width: 100%; margin-bottom: 4px; font-size: 13px;">${p.name}</button>
+    `).join('');
+    modal.style.display = 'flex';
+}
+
+function closeSwapSelect() {
+    document.getElementById('swap-select-modal').style.display = 'none';
+}
+
+function selectSwapPlayer(id, name) {
+    if (swapSelectSlot === 1) {
+        swapPlayer1 = { id, name };
+        document.getElementById('swap-player1-btn').textContent = name;
+    } else {
+        swapPlayer2 = { id, name };
+        document.getElementById('swap-player2-btn').textContent = name;
+    }
+    closeSwapSelect();
+
+    // Enable confirm button if both selected
+    document.getElementById('confirm-swap-btn').disabled = !(swapPlayer1 && swapPlayer2);
+}
+
+async function confirmSwap() {
+    if (!swapPlayer1 || !swapPlayer2 || swapConfirmed) return;
+
+    swapConfirmed = true;
+    document.getElementById('confirm-swap-btn').disabled = true;
+
+    try {
+        const resp = await fetch(`/api/games/${gameCode}/ability/swapper-swap?session_token=${sessionToken}&player1_id=${swapPlayer1.id}&player2_id=${swapPlayer2.id}`, {
+            method: 'POST'
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            document.getElementById('swapper-controls').style.display = 'none';
+            document.getElementById('swapper-result').style.display = 'block';
+            document.getElementById('swapper-result').textContent = `Swap set: ${swapPlayer1.name} ↔ ${swapPlayer2.name}`;
+        } else {
+            showError(data.detail || 'Swap failed');
+            swapConfirmed = false;
+            document.getElementById('confirm-swap-btn').disabled = false;
+        }
+    } catch (e) {
+        showError('Failed to set swap');
+        swapConfirmed = false;
+        document.getElementById('confirm-swap-btn').disabled = false;
+    }
+}
+
+// ==================== GUESSER ====================
+
+let guesserTargetId = null;
+let guesserTargetName = null;
+let guesserDead = false;
+
+function handleGuessButton(targetId, targetName) {
+    const isGuesser = GUESSER_ROLES.includes(myRole);
+    if (isGuesser) {
+        openGuesserModal(targetId, targetName);
+    }
+    // Non-guessers: do nothing (button is just for disguise)
+}
+
+function openGuesserModal(targetId, targetName) {
+    if (guesserDead) return;
+    guesserTargetId = targetId;
+    guesserTargetName = targetName;
+
+    document.getElementById('guesser-target-label').textContent = `Guessing ${targetName}'s role:`;
+
+    // Build role options from cached role guide or from all known roles
+    const allRoles = [
+        { name: 'Crewmate', color: '#4ade80' },
+        { name: 'Sheriff', color: '#3b82f6' },
+        { name: 'Engineer', color: '#22c55e' },
+        { name: 'Captain', color: '#0ea5e9' },
+        { name: 'Mayor', color: '#8b5cf6' },
+        { name: 'Bounty Hunter', color: '#14b8a6' },
+        { name: 'Spy', color: '#6366f1' },
+        { name: 'Swapper', color: '#ec4899' },
+        { name: 'Impostor', color: '#ef4444' },
+        { name: 'Riddler', color: '#dc2626' },
+        { name: 'Rampager', color: '#b91c1c' },
+        { name: 'Cleaner', color: '#991b1b' },
+        { name: 'Venter', color: '#7c2d12' },
+        { name: 'Minion', color: '#eab308' },
+        { name: 'Jester', color: '#a855f7' },
+        { name: 'Lone Wolf', color: '#f97316' },
+        { name: 'Vulture', color: '#84cc16' },
+        { name: 'Noise Maker', color: '#f59e0b' }
+    ];
+
+    // Crew guesser (Bounty Hunter): only show generic "Impostor" option
+    // Impostor guesser (Riddler): show all roles (can guess anyone as anything)
+    let displayRoles;
+    if (myRole === 'Bounty Hunter') {
+        displayRoles = allRoles.filter(r => !IMPOSTOR_SUBTYPES.includes(r.name));
+    } else {
+        displayRoles = allRoles;
+    }
+
+    const options = document.getElementById('guesser-role-options');
+    options.innerHTML = displayRoles.map(r => `
+        <button class="btn" onclick="confirmGuesserGuess('${r.name}')" style="width: 100%; margin-bottom: 4px; font-size: 13px; background: rgba(255,255,255,0.05); border: 1px solid ${r.color}; color: ${r.color};">
+            ${r.name}
+        </button>
+    `).join('');
+
+    document.getElementById('guesser-modal').style.display = 'flex';
+}
+
+function closeGuesserModal() {
+    document.getElementById('guesser-modal').style.display = 'none';
+    guesserTargetId = null;
+    guesserTargetName = null;
+}
+
+async function confirmGuesserGuess(roleName) {
+    if (!guesserTargetId || guesserDead) return;
+
+    if (!confirm(`Guess ${guesserTargetName} is ${roleName}?\n\nWrong guess = YOU DIE!`)) return;
+
+    closeGuesserModal();
+
+    try {
+        const resp = await fetch(`/api/games/${gameCode}/ability/guesser-guess?session_token=${sessionToken}&target_id=${guesserTargetId}&guessed_role=${encodeURIComponent(roleName)}`, {
+            method: 'POST'
+        });
+        // Result handled via WebSocket broadcast (guesser_result)
+        if (!resp.ok) {
+            const data = await resp.json();
+            showError(data.detail || 'Guess failed');
+        }
+    } catch (e) {
+        showError('Failed to submit guess');
+    }
+}
+
+function handleGuesserResult(payload) {
+    // Play death during meeting sound
+    playSound('sound-death-meeting');
+
+    // If the dead player is ME, show death overlay and disable voting
+    if (payload.dead_player_id === playerId) {
+        guesserDead = true;
+        // Disable all vote buttons and guesser buttons
+        document.querySelectorAll('.vote-btn, .guesser-guess-btn, #skip-vote-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+        meetingState.hasVoted = true;
+        // Show death overlay
+        showMeetingDeathOverlay(payload);
+    } else {
+        // Show toast to everyone else
+        showError(payload.message);
+    }
+
+    // Strike through dead player's name for ALL voters (regardless of correct/wrong guess)
+    if (payload.dead_player_id) {
+        const wrappers = document.querySelectorAll('.vote-btn-wrapper');
+        wrappers.forEach(w => {
+            const voteBtn = w.querySelector('.vote-btn');
+            if (voteBtn && voteBtn.textContent.trim() === payload.dead_player_name) {
+                voteBtn.disabled = true;
+                voteBtn.style.textDecoration = 'line-through';
+                voteBtn.style.opacity = '0.5';
+                const guessBtn = w.querySelector('.guesser-guess-btn');
+                if (guessBtn) {
+                    guessBtn.disabled = true;
+                    guessBtn.style.opacity = '0.5';
+                }
+            }
+        });
+    }
+
+    // Update vote count (server scrubs dead player's vote)
+    if (payload.votes_cast !== undefined) {
+        document.getElementById('votes-cast-count').textContent = payload.votes_cast;
+    }
+    if (payload.votes_needed !== undefined) {
+        document.getElementById('votes-needed-count').textContent = payload.votes_needed;
+    }
+
+    // Update allPlayers
+    const deadP = allPlayers.find(p => p.id === payload.dead_player_id);
+    if (deadP) deadP.status = 'dead';
+}
+
+function showMeetingDeathOverlay(payload) {
+    // Remove existing overlay if any
+    const existing = document.getElementById('meeting-death-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'meeting-death-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;';
+
+    const msg = payload.correct
+        ? 'You were identified and eliminated!'
+        : 'Your guess was wrong. You are dead!';
+
+    overlay.innerHTML = `
+        <div style="color: #ef4444; font-size: 32px; font-weight: bold; text-transform: uppercase; text-shadow: 0 0 20px rgba(239,68,68,0.5);">YOU ARE DEAD</div>
+        <div style="color: #94a3b8; font-size: 16px; max-width: 280px; text-align: center;">${msg}</div>
+        <button onclick="this.parentElement.remove()" class="btn" style="margin-top: 16px; background: #6b7280; padding: 10px 32px; font-size: 16px;">DISMISS</button>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// ==================== NOISE MAKER ====================
+
+function showNoiseMakerSelect() {
+    const modal = document.getElementById('noise-maker-modal');
+    const list = document.getElementById('noise-maker-player-list');
+
+    // Show alive players (excluding self)
+    const alivePlayers = allPlayers.filter(p => p.status !== 'dead' && p.id !== playerId);
+
+    list.innerHTML = alivePlayers.map(p => `
+        <button class="btn btn-secondary" onclick="selectNoiseMakerTarget('${p.id}')" style="width: 100%; margin-bottom: 6px; font-size: 14px;">
+            ${p.name}
+        </button>
+    `).join('');
+
+    modal.style.display = 'flex';
+}
+
+async function selectNoiseMakerTarget(targetId) {
+    const modal = document.getElementById('noise-maker-modal');
+    const targetPlayer = allPlayers.find(p => p.id === targetId);
+    const targetName = targetPlayer ? targetPlayer.name : 'this player';
+
+    if (!confirm(`Select ${targetName}? They will "find" your body and a meeting will be called.`)) return;
+
+    // Disable all buttons in the modal
+    modal.querySelectorAll('button').forEach(btn => btn.disabled = true);
+
+    try {
+        const resp = await fetch(`/api/games/${gameCode}/ability/noise-maker-select?session_token=${sessionToken}&target_player_id=${targetId}`, {
+            method: 'POST'
+        });
+        if (resp.ok) {
+            modal.style.display = 'none';
+            // Meeting will be triggered via WebSocket broadcast
+        } else {
+            const data = await resp.json();
+            showError(data.detail || 'Failed to select target');
+            modal.querySelectorAll('button').forEach(btn => btn.disabled = false);
+        }
+    } catch (e) {
+        showError('Failed to select target');
+        modal.querySelectorAll('button').forEach(btn => btn.disabled = false);
+    }
+}
+
+let vultureEatenBodyIds = [];  // Track which bodies we've already eaten
+let vultureIneligibleBodyIds = [];  // Bodies discovered in meetings or voted out
+
+function updateVultureBodyList() {
+    const list = document.getElementById('vulture-body-list');
+    if (!list) return;
+
+    // Filter out bodies we've already eaten AND bodies discovered in meetings/voted out
+    const deadPlayers = allPlayers.filter(p => p.status === 'dead' && p.id !== playerId && !vultureEatenBodyIds.includes(p.id) && !vultureIneligibleBodyIds.includes(p.id));
+    if (deadPlayers.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; font-size: 13px;">No bodies to eat</p>';
+        return;
+    }
+
+    list.innerHTML = deadPlayers.map(p => `
+        <button class="vulture-eat-btn" onclick="vultureEat('${p.id}', '${p.name}')">
+            EAT ${p.name.toUpperCase()}
+        </button>
+    `).join('');
+}
+
+async function vultureEat(targetId, targetName) {
+    if (!confirm(`Eat ${targetName}'s body? Tell them to act alive until the next meeting.`)) return;
+
+    try {
+        const response = await fetch(`/api/games/${gameCode}/ability/vulture-eat?session_token=${sessionToken}&body_player_id=${targetId}`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('vulture-count').textContent = data.bodies_eaten || 0;
+            // Track eaten body locally so it disappears from the list
+            if (!vultureEatenBodyIds.includes(targetId)) {
+                vultureEatenBodyIds.push(targetId);
+            }
+            updateVultureBodyList();
+            if (data.vulture_wins) {
+                showError('You ate enough bodies! Vulture wins!');
+            }
+        } else {
+            const data = await response.json();
+            showError(data.detail || 'Failed to eat body');
+        }
+    } catch (e) {
+        showError('Failed to eat body');
     }
 }
 
@@ -2292,10 +3162,32 @@ function handlePlayerDeath(payload) {
         document.getElementById('report-body-btn').disabled = true;
     }
 
+    // Update bounty kill button if we're bounty hunter and our target died
+    if (myRole === 'Rampager') {
+        updateBountyKillButton();
+    }
+
+    // Update vulture body list if we're a vulture
+    if (myRole === 'Vulture') {
+        // Voted-out players are ineligible for vulture eating
+        if (payload.cause === 'voted_out' && !vultureIneligibleBodyIds.includes(payload.player_id)) {
+            vultureIneligibleBodyIds.push(payload.player_id);
+        }
+        updateVultureBodyList();
+    }
+
     refreshGame();
 }
 
 function handleGameEnd(payload) {
+    // Clear any active sabotage UI/timer so it doesn't trigger after game ends
+    activeSabotage = null;
+    document.getElementById('sabotage-alert').style.display = 'none';
+    if (sabotageTimerInterval) {
+        clearInterval(sabotageTimerInterval);
+        sabotageTimerInterval = null;
+    }
+
     document.getElementById('winner-text').textContent = payload.winner.toUpperCase() + 'S WIN!';
 
     document.getElementById('roles-list').innerHTML = payload.roles.map(p => `
@@ -2317,6 +3209,8 @@ function handleGameEnd(payload) {
         playSound('sound-jester-win');
     } else if (winner === 'lone wolf') {
         playSound('sound-lonewolf-win');
+    } else if (winner === 'vulture') {
+        playSound('sound-vulture-win');
     }
 
     // Vibrate
@@ -2425,8 +3319,8 @@ async function removeTask(taskName) {
 function showCooldownTimer() {
     const timerSection = document.getElementById('cooldown-timer');
 
-    // Show timer for Impostor, Sheriff, or Lone Wolf
-    if (myRole === 'Impostor' || myRole === 'Sheriff' || myRole === 'Lone Wolf') {
+    // Show timer for Impostor, Rampager, Sheriff, or Lone Wolf
+    if (KILL_COOLDOWN_ROLES.includes(myRole)) {
         timerSection.style.display = 'block';
     } else {
         timerSection.style.display = 'none';
@@ -2437,6 +3331,10 @@ function getCooldownForRole() {
     // Return role-specific cooldown
     if (myRole === 'Impostor') {
         return settings.impostor_kill_cooldown || settings.kill_cooldown || 30;
+    } else if (myRole === 'Rampager') {
+        // Base impostor cooldown minus 5s per bounty kill, minimum 10s
+        const base = settings.impostor_kill_cooldown || settings.kill_cooldown || 30;
+        return Math.max(10, base - (5 * bountyKills));
     } else if (myRole === 'Sheriff') {
         return settings.sheriff_shoot_cooldown || settings.kill_cooldown || 30;
     } else if (myRole === 'Lone Wolf') {
@@ -2538,15 +3436,82 @@ function prevMapSlide() {
     goToMapSlide(currentMapIndex - 1);
 }
 
+// ==================== ROLE GUIDE ====================
+
+let roleGuideCache = null;
+
+async function showRoleGuide() {
+    document.getElementById('role-guide-modal').style.display = 'flex';
+
+    if (roleGuideCache) {
+        renderRoleGuide(roleGuideCache);
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/games/${gameCode}/role-guide?session_token=${sessionToken}`);
+        if (resp.ok) {
+            roleGuideCache = await resp.json();
+            renderRoleGuide(roleGuideCache);
+        }
+    } catch (e) {
+        document.getElementById('role-guide-content').innerHTML = '<p style="color: #ef4444;">Failed to load roles</p>';
+    }
+}
+
+function renderRoleGuide(guide) {
+    const container = document.getElementById('role-guide-content');
+    let html = '';
+
+    const sections = [
+        { key: 'crew', title: 'Crew', color: '#4ade80' },
+        { key: 'impostor', title: 'Impostor', color: '#ef4444' },
+        { key: 'neutral', title: 'Neutral', color: '#a855f7' }
+    ];
+
+    for (const section of sections) {
+        const roles = guide[section.key];
+        if (!roles || roles.length === 0) continue;
+
+        html += `<div style="margin-bottom: 15px;">`;
+        html += `<h3 style="color: ${section.color}; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">${section.title}</h3>`;
+
+        for (const role of roles) {
+            html += `
+                <div class="role-guide-item" onclick="this.querySelector('.role-guide-desc').classList.toggle('expanded')" style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; margin-bottom: 6px; cursor: pointer;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: ${role.color}; font-weight: bold;">${role.name}</span>
+                        <span style="color: #94a3b8; font-size: 12px;">${role.short}</span>
+                    </div>
+                    <div class="role-guide-desc" style="color: #cbd5e1; font-size: 13px; margin-top: 0; max-height: 0; overflow: hidden; transition: max-height 0.2s, margin-top 0.2s;">
+                        ${role.description}
+                    </div>
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function hideRoleGuide() {
+    document.getElementById('role-guide-modal').style.display = 'none';
+}
+
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
     const rulesModal = document.getElementById('rules-modal');
     const mapModal = document.getElementById('map-modal');
+    const roleGuideModal = document.getElementById('role-guide-modal');
     if (e.target === rulesModal) {
         hideRules();
     }
     if (e.target === mapModal) {
         hideMapGallery();
+    }
+    if (e.target === roleGuideModal) {
+        hideRoleGuide();
     }
 });
 

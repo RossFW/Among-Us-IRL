@@ -2,13 +2,15 @@
 
 from fastapi import APIRouter, HTTPException
 from ..database import game_store
-from ..models import GameState, PlayerStatus, Role, ActiveSabotage, MeetingState, Vote, VoteType, ROLE_CATEGORIES, RoleCategory
+from ..models import GameState, PlayerStatus, Role, ActiveSabotage, MeetingState, Vote, VoteType, ROLE_CATEGORIES, RoleCategory, ROLE_DESCRIPTIONS
 import time
 from ..services.ws_manager import ws_manager
 from ..services.game_logic import (
     start_game, complete_task, uncomplete_task, mark_player_dead,
-    check_win_conditions, get_role_info, get_all_roles, sheriff_shoot
+    check_win_conditions, get_role_info, get_all_roles, sheriff_shoot,
+    reassign_bounty_target
 )
+from ..services.game_helpers import check_and_reassign_bounty_targets
 
 router = APIRouter(prefix="/api", tags=["game"])
 
@@ -64,6 +66,7 @@ async def end_game_endpoint(code: str, session_token: str = None):
 
     game.state = GameState.ENDED
     game.winner = "Cancelled"
+    game.active_sabotage = None
 
     # Notify all players
     await ws_manager.broadcast_to_game(game.code, {
@@ -107,6 +110,7 @@ async def complete_task_endpoint(task_id: str, session_token: str):
     if winner:
         game.state = GameState.ENDED
         game.winner = winner
+        game.active_sabotage = None
         await ws_manager.broadcast_to_game(game.code, {
             "type": "game_ended",
             "payload": {
@@ -179,6 +183,7 @@ async def mark_dead_endpoint(player_id: str, session_token: str):
     if winner:
         game.state = GameState.ENDED
         game.winner = winner
+        game.active_sabotage = None
         await ws_manager.broadcast_to_game(game.code, {
             "type": "game_ended",
             "payload": {
@@ -187,7 +192,11 @@ async def mark_dead_endpoint(player_id: str, session_token: str):
             }
         })
 
-    return {"success": True}
+    # Noise Maker: return flag so frontend shows target selection
+    # Only during PLAYING (not during meetings - voted out doesn't trigger)
+    is_noise_maker = player.role == Role.NOISE_MAKER and game.state == GameState.PLAYING
+
+    return {"success": True, "noise_maker": is_noise_maker}
 
 
 @router.post("/players/{player_id}/jester-win")
@@ -213,6 +222,7 @@ async def jester_win_endpoint(player_id: str, session_token: str):
     # Jester wins!
     game.state = GameState.ENDED
     game.winner = "Jester"
+    game.active_sabotage = None
 
     await ws_manager.broadcast_to_game(game.code, {
         "type": "game_ended",
@@ -258,6 +268,7 @@ async def sheriff_shoot_endpoint(target_id: str, session_token: str):
     if winner:
         game.state = GameState.ENDED
         game.winner = winner
+        game.active_sabotage = None
         await ws_manager.broadcast_to_game(game.code, {
             "type": "game_ended",
             "payload": {
@@ -294,6 +305,12 @@ async def start_meeting_endpoint(code: str, session_token: str, meeting_type: st
         meeting_type=meeting_type,
         phase="gathering"  # Waiting for caller to start voting
     )
+
+    # Mark all currently dead bodies as ineligible for vulture eating
+    # Bodies from previous rounds are "discovered" when a meeting starts
+    for p in game.players.values():
+        if p.status == PlayerStatus.DEAD and p.id not in game.vulture_ineligible_body_ids:
+            game.vulture_ineligible_body_ids.append(p.id)
 
     # Handle active sabotage during meeting
     # Reactor and O2 resolve on meeting, Lights persists
@@ -430,6 +447,7 @@ async def end_meeting_endpoint(code: str, session_token: str):
     if winner:
         game.state = GameState.ENDED
         game.winner = winner
+        game.active_sabotage = None
         await ws_manager.broadcast_to_game(game.code, {
             "type": "game_ended",
             "payload": {
@@ -594,6 +612,21 @@ async def reveal_vote_results(game):
         "total_votes": len(game.active_meeting.votes)
     }
 
+    # Track swapped player names for display
+    swapped_names = []
+    if swapper_targets:
+        p1 = game.players.get(swapper_targets[0])
+        p2 = game.players.get(swapper_targets[1])
+        if p1:
+            swapped_names.append(p1.name)
+        if p2:
+            swapped_names.append(p2.name)
+        # Ensure both swapped players appear in vote_counts even with 0 votes
+        for name in swapped_names:
+            if name not in result["vote_counts"]:
+                result["vote_counts"][name] = 0
+    result["swapped_names"] = swapped_names
+
     eliminated_player = None
 
     if len(candidates) == 0 or (len(candidates) == 1 and skip_is_max and skip_count >= vote_counts.get(candidates[0], 0)):
@@ -622,10 +655,16 @@ async def reveal_vote_results(game):
         votes_by_target = {}  # target_name -> list of voter names
         for vote in game.active_meeting.votes.values():
             target_name = game.players[vote.target_id].name if vote.target_id else "Skip"
-            voter_name = game.players[vote.voter_id].name
+            voter = game.players.get(vote.voter_id)
+            voter_name = voter.name if voter else "Unknown"
             if target_name not in votes_by_target:
                 votes_by_target[target_name] = []
-            votes_by_target[target_name].append(voter_name)
+            # Mayor's vote counts twice - show their name twice
+            if voter and voter.role == Role.MAYOR:
+                votes_by_target[target_name].append(voter_name)
+                votes_by_target[target_name].append(voter_name)
+            else:
+                votes_by_target[target_name].append(voter_name)
 
         result["votes_by_target"] = votes_by_target
         print(f"DEBUG votes_by_target: {votes_by_target}")
@@ -651,6 +690,10 @@ async def reveal_vote_results(game):
     if eliminated_player:
         eliminated_player.status = PlayerStatus.DEAD
 
+        # Voted-out players are ineligible for vulture eating
+        if eliminated_player.id not in game.vulture_ineligible_body_ids:
+            game.vulture_ineligible_body_ids.append(eliminated_player.id)
+
         # Notify everyone that this player died (so their UI updates)
         await ws_manager.broadcast_to_game(game.code, {
             "type": "player_died",
@@ -661,10 +704,14 @@ async def reveal_vote_results(game):
             }
         })
 
+        # Auto-reassign bounty targets if the eliminated player was someone's target
+        await check_and_reassign_bounty_targets(game, eliminated_player.id)
+
         # Check for Jester win
         if eliminated_player.role == Role.JESTER:
             game.state = GameState.ENDED
             game.winner = "Jester"
+            game.active_sabotage = None
             await ws_manager.broadcast_to_game(game.code, {
                 "type": "game_ended",
                 "payload": {
@@ -680,6 +727,7 @@ async def reveal_vote_results(game):
         if winner:
             game.state = GameState.ENDED
             game.winner = winner
+            game.active_sabotage = None
             await ws_manager.broadcast_to_game(game.code, {
                 "type": "game_ended",
                 "payload": {
@@ -720,6 +768,43 @@ async def get_my_info(session_token: str):
     return response
 
 
+@router.get("/games/{code}/role-guide")
+async def get_role_guide(code: str, session_token: str = None):
+    """Get role descriptions for all enabled roles in this game."""
+    game = game_store.get_game(code.upper())
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    s = game.settings
+    enabled_roles = ["crewmate", "impostor"]
+
+    # Legacy toggle roles
+    if s.enable_jester:
+        enabled_roles.append("jester")
+    if s.enable_lone_wolf:
+        enabled_roles.append("lone_wolf")
+    if s.enable_minion:
+        enabled_roles.append("minion")
+    if s.enable_sheriff:
+        enabled_roles.append("sheriff")
+
+    # Probability-based roles
+    for key, config in s.role_configs.items():
+        if config.enabled and key not in enabled_roles:
+            enabled_roles.append(key)
+
+    # Build response grouped by category
+    guide = {"crew": [], "impostor": [], "neutral": []}
+    for role_key in enabled_roles:
+        desc = ROLE_DESCRIPTIONS.get(role_key)
+        if desc:
+            category = desc["category"]
+            if category in guide:
+                guide[category].append(desc)
+
+    return guide
+
+
 # ==================== SABOTAGE ENDPOINTS ====================
 
 @router.post("/games/{code}/sabotage/start")
@@ -731,8 +816,9 @@ async def start_sabotage_endpoint(code: str, sabotage_index: int, session_token:
 
     game, player = result
 
-    # Must be an Impostor (alive or dead can trigger)
-    if player.role != Role.IMPOSTOR:
+    # Must be impostor-aligned (except Minion) — alive or dead can trigger
+    impostor_sabotage_roles = [Role.IMPOSTOR, Role.EVIL_GUESSER, Role.BOUNTY_HUNTER, Role.CLEANER, Role.VENTER]
+    if player.role not in impostor_sabotage_roles:
         raise HTTPException(status_code=403, detail="Only impostors can sabotage")
 
     # Game must be in progress (not meeting, not ended)
@@ -892,6 +978,10 @@ async def check_sabotage_timeout_endpoint(code: str, session_token: str):
 
     game, player = result
 
+    # If game already ended (e.g., neutral win), don't process sabotage timeout
+    if game.state == GameState.ENDED:
+        return {"success": True, "expired": False}
+
     if game.active_sabotage is None:
         return {"success": True, "expired": False}
 
@@ -1001,7 +1091,7 @@ async def engineer_fix_endpoint(code: str, session_token: str):
 
 @router.post("/games/{code}/ability/captain-meeting")
 async def captain_meeting_endpoint(code: str, session_token: str):
-    """Captain: Call extra emergency meeting (one additional use per game)."""
+    """Captain: Call a remote meeting from anywhere (one use per game)."""
     result = game_store.get_player_by_session(session_token)
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -1015,10 +1105,13 @@ async def captain_meeting_endpoint(code: str, session_token: str):
         raise HTTPException(status_code=400, detail="You are dead")
 
     if player.captain_meeting_used:
-        raise HTTPException(status_code=400, detail="Already used extra meeting this game")
+        raise HTTPException(status_code=400, detail="Already used remote meeting this game")
 
     if game.state != GameState.PLAYING:
         raise HTTPException(status_code=400, detail="Cannot call meeting now")
+
+    if game.active_meeting is not None:
+        raise HTTPException(status_code=400, detail="Meeting already in progress")
 
     if game.active_sabotage is not None:
         raise HTTPException(status_code=400, detail="Cannot call meeting during sabotage")
@@ -1026,7 +1119,12 @@ async def captain_meeting_endpoint(code: str, session_token: str):
     # Mark ability as used
     player.captain_meeting_used = True
 
-    # Create meeting state
+    # Mark all currently dead bodies as ineligible for vulture eating
+    for p in game.players.values():
+        if p.status == PlayerStatus.DEAD and p.id not in game.vulture_ineligible_body_ids:
+            game.vulture_ineligible_body_ids.append(p.id)
+
+    # Create meeting state (same as normal meeting)
     game.active_meeting = MeetingState(
         started_at=time.time(),
         started_by=player.id,
@@ -1036,14 +1134,28 @@ async def captain_meeting_endpoint(code: str, session_token: str):
     )
     game.state = GameState.MEETING
 
-    # Broadcast meeting
+    # Broadcast meeting with full payload (same as normal meeting)
     await ws_manager.broadcast_to_game(game.code, {
         "type": "meeting_called",
         "payload": {
-            "caller_id": player.id,
             "called_by": player.name,
+            "caller_id": player.id,
             "meeting_type": "meeting",
-            "reason": "Captain's extra meeting"
+            "phase": "gathering",
+            "task_percentage": game.get_task_completion_percentage(),
+            "alive_players": [
+                {"id": p.id, "name": p.name}
+                for p in game.get_alive_players()
+            ],
+            "dead_players": [
+                {"id": p.id, "name": p.name}
+                for p in game.get_dead_players()
+            ],
+            "enable_voting": game.settings.enable_voting,
+            "anonymous_voting": game.settings.anonymous_voting,
+            "timer_duration": game.settings.meeting_timer_duration,
+            "warning_time": game.settings.meeting_warning_time,
+            "discussion_time": game.settings.discussion_time
         }
     })
 
@@ -1069,7 +1181,7 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
         raise HTTPException(status_code=400, detail="Can only guess during meetings")
 
     if player.guesser_used_this_meeting:
-        raise HTTPException(status_code=400, detail="Already guessed this meeting")
+        raise HTTPException(status_code=400, detail="Already guessed wrong this meeting")
 
     target = game.players.get(target_id)
     if not target:
@@ -1078,27 +1190,42 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
     if target.status != PlayerStatus.ALIVE:
         raise HTTPException(status_code=400, detail="Target is already dead")
 
-    # Mark ability as used this meeting
-    player.guesser_used_this_meeting = True
-
     # Check if guess is correct
     try:
         guessed = Role(guessed_role)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid role")
 
-    if target.role == guessed:
-        # Correct! Target dies
+    # Crew guesser (Bounty Hunter): "Impostor" guess matches ANY impostor-category role
+    if player.role == Role.NICE_GUESSER and guessed == Role.IMPOSTOR:
+        is_correct = ROLE_CATEGORIES.get(target.role) == RoleCategory.IMPOSTOR
+    else:
+        is_correct = target.role == guessed
+
+    if is_correct:
+        # Correct! Target dies. Guesser can keep guessing.
         target.status = PlayerStatus.DEAD
         dead_player = target
         guesser_survived = True
         message = f"{player.name} correctly guessed {target.name}'s role!"
     else:
-        # Wrong! Guesser dies
+        # Wrong! Guesser dies. Mark as used so they can't guess again.
+        player.guesser_used_this_meeting = True
         player.status = PlayerStatus.DEAD
         dead_player = player
         guesser_survived = False
         message = f"{player.name} guessed wrong and died!"
+
+    # Scrub dead player's vote if they already voted
+    if game.active_meeting and dead_player.id in game.active_meeting.votes:
+        del game.active_meeting.votes[dead_player.id]
+
+    # Auto-reassign bounty targets if the dead player was someone's target
+    await check_and_reassign_bounty_targets(game, dead_player.id)
+
+    # Calculate updated vote counts
+    alive_count = sum(1 for p in game.players.values() if p.status == PlayerStatus.ALIVE)
+    votes_cast = len(game.active_meeting.votes) if game.active_meeting else 0
 
     # Broadcast result
     await ws_manager.broadcast_to_game(game.code, {
@@ -1112,7 +1239,9 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
             "correct": guesser_survived,
             "dead_player_id": dead_player.id,
             "dead_player_name": dead_player.name,
-            "message": message
+            "message": message,
+            "votes_cast": votes_cast,
+            "votes_needed": alive_count
         }
     })
 
@@ -1121,6 +1250,7 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
     if winner:
         game.state = GameState.ENDED
         game.winner = winner
+        game.active_sabotage = None
         await ws_manager.broadcast_to_game(game.code, {
             "type": "game_ended",
             "payload": {
@@ -1130,6 +1260,74 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
         })
 
     return {"success": True, "correct": guesser_survived, "message": message}
+
+
+@router.post("/games/{code}/ability/noise-maker-select")
+async def noise_maker_select_endpoint(code: str, session_token: str, target_player_id: str):
+    """Noise Maker: Select who 'finds' your body. Triggers a body report meeting on that player."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.NOISE_MAKER:
+        raise HTTPException(status_code=403, detail="Not a Noise Maker")
+
+    if player.status != PlayerStatus.DEAD:
+        raise HTTPException(status_code=400, detail="You must be dead to use this ability")
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Can only use during gameplay")
+
+    if game.active_meeting:
+        raise HTTPException(status_code=400, detail="Meeting already in progress")
+
+    target = game.players.get(target_player_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    if target.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="Target must be alive")
+
+    # Store the target selection
+    player.noise_maker_target_id = target_player_id
+
+    # Trigger a body report meeting with the target as the "caller"
+    # Mark all currently dead bodies as ineligible for vulture eating
+    for p in game.players.values():
+        if p.status == PlayerStatus.DEAD and p.id not in game.vulture_ineligible_body_ids:
+            game.vulture_ineligible_body_ids.append(p.id)
+
+    game.state = GameState.MEETING
+    game.active_meeting = MeetingState(
+        started_at=time.time(),
+        started_by=target.id,
+        started_by_name=target.name,
+        meeting_type="body_report"
+    )
+
+    alive_players = [{"id": p.id, "name": p.name} for p in game.get_alive_players()]
+    dead_players = [{"id": p.id, "name": p.name} for p in game.get_dead_players()]
+
+    await ws_manager.broadcast_to_game(game.code, {
+        "type": "meeting_called",
+        "payload": {
+            "caller_id": target.id,
+            "called_by": target.name,
+            "meeting_type": "body_report",
+            "phase": "gathering",
+            "task_percentage": game.get_task_completion_percentage(),
+            "alive_players": alive_players,
+            "dead_players": dead_players,
+            "enable_voting": game.settings.enable_voting,
+            "anonymous_voting": game.settings.anonymous_voting,
+            "timer_duration": game.settings.meeting_timer_duration,
+            "warning_time": game.settings.meeting_warning_time
+        }
+    })
+
+    return {"success": True}
 
 
 @router.post("/games/{code}/ability/vulture-eat")
@@ -1157,9 +1355,18 @@ async def vulture_eat_endpoint(code: str, session_token: str, body_player_id: st
     if body.status != PlayerStatus.DEAD:
         raise HTTPException(status_code=400, detail="Player is not dead")
 
+    # Prevent eating the same body twice
+    if body_player_id in player.vulture_eaten_body_ids:
+        raise HTTPException(status_code=400, detail="Already ate this body")
+
+    # Prevent eating bodies discovered in meetings or voted out
+    if body_player_id in game.vulture_ineligible_body_ids:
+        raise HTTPException(status_code=400, detail="This body is no longer available")
+
     # Eat the body
+    player.vulture_eaten_body_ids.append(body_player_id)
     player.vulture_bodies_eaten += 1
-    bodies_needed = 3
+    bodies_needed = game.settings.vulture_eat_count
 
     # Notify the dead player they were eaten (private message)
     await ws_manager.send_to_player(game.code, body.id, {
@@ -1173,6 +1380,7 @@ async def vulture_eat_endpoint(code: str, session_token: str, body_player_id: st
     if player.vulture_bodies_eaten >= bodies_needed:
         game.state = GameState.ENDED
         game.winner = "Vulture"
+        game.active_sabotage = None  # Clear any active sabotage
         await ws_manager.broadcast_to_game(game.code, {
             "type": "game_ended",
             "payload": {
@@ -1181,12 +1389,68 @@ async def vulture_eat_endpoint(code: str, session_token: str, body_player_id: st
                 "roles": get_all_roles(game)
             }
         })
-        return {"success": True, "vulture_wins": True}
+        return {"success": True, "vulture_wins": True, "bodies_eaten": player.vulture_bodies_eaten, "bodies_needed": bodies_needed}
 
     return {
         "success": True,
         "bodies_eaten": player.vulture_bodies_eaten,
         "bodies_needed": bodies_needed
+    }
+
+
+@router.post("/games/{code}/ability/bounty-kill")
+async def bounty_kill_endpoint(code: str, session_token: str, claimed: bool = True):
+    """Rampager: Handle bounty target death. If claimed, increment kill count. Always reassigns target."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.BOUNTY_HUNTER:
+        raise HTTPException(status_code=403, detail="Not a Bounty Hunter")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Game not in progress")
+
+    # Verify current target is dead
+    if not player.bounty_target_id:
+        raise HTTPException(status_code=400, detail="No bounty target assigned")
+
+    target = game.players.get(player.bounty_target_id)
+    if not target or target.status != PlayerStatus.DEAD:
+        raise HTTPException(status_code=400, detail="Bounty target is not dead")
+
+    # Only increment bounty kills if player claimed the kill
+    if claimed:
+        player.bounty_kills += 1
+
+    # Reassign to new target
+    new_target_id = reassign_bounty_target(game, player)
+    new_target_name = None
+    if new_target_id:
+        new_target = game.players.get(new_target_id)
+        if new_target:
+            new_target_name = new_target.name
+
+    # Send updated target info privately
+    await ws_manager.send_to_player(game.code, player.id, {
+        "type": "bounty_target_update",
+        "payload": {
+            "target_id": new_target_id,
+            "target_name": new_target_name,
+            "bounty_kills": player.bounty_kills
+        }
+    })
+
+    return {
+        "success": True,
+        "bounty_kills": player.bounty_kills,
+        "new_target_id": new_target_id,
+        "new_target_name": new_target_name
     }
 
 

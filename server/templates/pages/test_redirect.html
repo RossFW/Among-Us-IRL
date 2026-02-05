@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Mode - Among Us IRL</title></head>
+<body style="background: #1a1a2e; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+    <div style="text-align: center;" id="status">
+        <h2>Test Mode</h2>
+        <p id="status-text">Joining TEST game...</p>
+        <p id="error-text" style="color: #ef4444; display: none;"></p>
+        <button id="retry-btn" style="display: none; margin-top: 10px; padding: 10px 20px; background: #e94560; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;" onclick="setup()">RETRY</button>
+    </div>
+    <script>
+    async function setup() {
+        document.getElementById('error-text').style.display = 'none';
+        document.getElementById('retry-btn').style.display = 'none';
+        document.getElementById('status-text').textContent = 'Joining TEST game...';
+
+        // Clear old session
+        localStorage.removeItem('session_token');
+        localStorage.removeItem('player_id');
+
+        try {
+            // Single atomic call - server handles create-or-join
+            const resp = await fetch('/api/test/join', { method: 'POST' });
+
+            if (resp.ok) {
+                const data = await resp.json();
+                localStorage.setItem('session_token', data.session_token);
+                localStorage.setItem('player_id', data.player_id);
+                localStorage.setItem('player_name', data.player_name);
+                window.location.href = '/game/' + data.code;
+            } else {
+                const err = await resp.json().catch(() => ({}));
+                document.getElementById('error-text').textContent = 'Failed: ' + (err.detail || resp.status);
+                document.getElementById('error-text').style.display = 'block';
+                document.getElementById('retry-btn').style.display = 'inline-block';
+            }
+        } catch (e) {
+            document.getElementById('error-text').textContent = 'Connection error: ' + e.message;
+            document.getElementById('error-text').style.display = 'block';
+            document.getElementById('retry-btn').style.display = 'inline-block';
+        }
+    }
+
+    setup();
+    </script>
+</body>
+</html>

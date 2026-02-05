@@ -190,6 +190,12 @@ async def update_settings(code: str, request: UpdateSettingsRequest, session_tok
         game.settings.anonymous_voting = request.anonymous_voting
     if request.discussion_time is not None:
         game.settings.discussion_time = max(0, request.discussion_time)
+    # Vulture settings
+    if request.vulture_eat_count is not None:
+        game.settings.vulture_eat_count = max(1, min(10, request.vulture_eat_count))
+    # Post-vote results timer
+    if request.vote_results_duration is not None:
+        game.settings.vote_results_duration = max(5, min(30, request.vote_results_duration))
 
     # Role configs (probability-based roles)
     if request.role_configs is not None:
@@ -320,3 +326,49 @@ async def leave_game(code: str, session_token: str):
     })
 
     return {"success": True, "game_deleted": False}
+
+
+@router.post("/test/join")
+async def test_join_or_create():
+    """Test mode: atomically join or create a game with code TEST.
+
+    Single endpoint eliminates race conditions - no separate check step.
+    """
+    code = "TEST"
+    game = game_store.get_game(code)
+
+    if game and game.state == GameState.LOBBY:
+        # Join existing game
+        player_name = f"Player {len(game.players) + 1}"
+        result = game_store.join_game(code, player_name)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to join game")
+        game, player = result
+
+        # Notify other players via WebSocket
+        await ws_manager.broadcast_to_game(game.code, {
+            "type": "player_joined",
+            "payload": {
+                "player_id": player.id,
+                "name": player.name
+            }
+        })
+
+        return {
+            "code": game.code,
+            "player_id": player.id,
+            "player_name": player.name,
+            "session_token": player.session_token,
+            "is_host": False
+        }
+    else:
+        # No game or game not in lobby - create fresh
+        game, host = game_store.create_game_with_code("Player 1", code)
+
+        return {
+            "code": game.code,
+            "player_id": host.id,
+            "player_name": host.name,
+            "session_token": host.session_token,
+            "is_host": True
+        }

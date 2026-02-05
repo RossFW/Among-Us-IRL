@@ -162,7 +162,7 @@ class RoleConfig(BaseModel):
 
 class GameSettings(BaseModel):
     tasks_per_player: int = 5
-    num_impostors: int = 2
+    num_impostors: int = 1
     # Legacy role toggles (kept for backwards compatibility)
     enable_jester: bool = False
     enable_lone_wolf: bool = False
@@ -223,7 +223,7 @@ class GameSettings(BaseModel):
     sabotage_4_name: str = "Comms"
     sabotage_4_type: str = "lights"
     sabotage_4_timer: int = 0
-    # Meeting Timer & Voting settings
+    # Voting Timer settings (total meeting duration including discussion time)
     meeting_timer_duration: int = 120  # seconds, default 2 minutes
     meeting_warning_time: int = 30     # seconds before end to play warning sound
     enable_voting: bool = True         # Enable in-app voting
@@ -232,7 +232,7 @@ class GameSettings(BaseModel):
     # Vulture settings
     vulture_eat_count: int = 3         # Number of bodies vulture must eat to win
     # Post-vote results timer
-    vote_results_duration: int = 10    # Seconds to show results before END MEETING appears (5-30)
+    vote_results_duration: int = 5     # Seconds to show results before END MEETING appears (5-30)
 
 
 class ActiveSabotage(BaseModel):
@@ -364,7 +364,7 @@ class UpdateSettingsRequest(BaseModel):
     sabotage_4_enabled: Optional[bool] = None
     sabotage_4_name: Optional[str] = None
     sabotage_4_timer: Optional[int] = None
-    # Meeting Timer & Voting settings
+    # Voting Timer settings
     meeting_timer_duration: Optional[int] = None
     meeting_warning_time: Optional[int] = None
     enable_voting: Optional[bool] = None

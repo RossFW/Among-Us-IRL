@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 # Change this to your Cloudflare URL or localhost
-BASE_URL = "https://creatures-wholesale-tells-analyzed.trycloudflare.com"
+BASE_URL = "https://imposter.rossfw.com"
 # BASE_URL = "http://localhost:8000"
 
 @dataclass

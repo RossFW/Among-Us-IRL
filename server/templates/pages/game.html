@@ -31,7 +31,7 @@
                     <label>Impostors</label>
                     <div class="number-control">
                         <button class="btn-small" onclick="adjustSetting('impostors', -1)">-</button>
-                        <span id="setting-impostors">2</span>
+                        <span id="setting-impostors">1</span>
                         <button class="btn-small" onclick="adjustSetting('impostors', 1)">+</button>
                     </div>
                 </div>
@@ -290,7 +290,7 @@
                             <span>Anonymous Voting</span>
                         </label>
                         <div class="setting">
-                            <label>Meeting Timer</label>
+                            <label>Voting Timer</label>
                             <div class="number-control">
                                 <button class="btn-small" onclick="adjustSetting('meeting_timer', -10)">-</button>
                                 <span class="timer-value"><span id="setting-meeting-timer">120</span>s</span>
@@ -317,7 +317,7 @@
                             <label>Results Display Time</label>
                             <div class="number-control">
                                 <button class="btn-small" onclick="adjustSetting('vote_results_duration', -5)">-</button>
-                                <span class="timer-value"><span id="setting-vote-results-duration">10</span>s</span>
+                                <span class="timer-value"><span id="setting-vote-results-duration">5</span>s</span>
                                 <button class="btn-small" onclick="adjustSetting('vote_results_duration', 5)">+</button>
                             </div>
                         </div>
@@ -520,7 +520,7 @@
             </button>
         </div>
 
-        <!-- Meeting Timer -->
+        <!-- Voting Timer -->
         <div class="meeting-timer" id="meeting-timer" style="display: none;">
             <div class="timer-circle">
                 <span id="meeting-timer-display">2:00</span>

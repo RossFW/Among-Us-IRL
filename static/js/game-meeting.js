@@ -978,10 +978,12 @@ async function confirmGuesserGuess(roleName) {
 
     if (!confirm(`Guess ${guesserTargetName} is ${roleName}?\n\nWrong guess = YOU DIE!`)) return;
 
+    // Capture target ID before closing modal (closeGuesserModal sets guesserTargetId = null)
+    const targetId = guesserTargetId;
     closeGuesserModal();
 
     try {
-        const resp = await fetch(`/api/games/${gameCode}/ability/guesser-guess?session_token=${sessionToken}&target_id=${guesserTargetId}&guessed_role=${encodeURIComponent(roleName)}`, {
+        const resp = await fetch(`/api/games/${gameCode}/ability/guesser-guess?session_token=${sessionToken}&target_id=${targetId}&guessed_role=${encodeURIComponent(roleName)}`, {
             method: 'POST'
         });
         // Result handled via WebSocket broadcast (guesser_result)

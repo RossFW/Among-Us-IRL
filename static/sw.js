@@ -1,10 +1,14 @@
 // Among Us IRL - Service Worker
 
-const CACHE_NAME = 'among-us-irl-v1';
+const CACHE_NAME = 'among-us-irl-v2';
 const urlsToCache = [
     '/',
     '/static/css/styles.css',
-    '/static/js/app.js'
+    '/static/js/app.js',
+    '/static/js/game-core.js',
+    '/static/js/game-sabotage.js',
+    '/static/js/game-meeting.js',
+    '/static/js/game-abilities.js'
 ];
 
 // Install event - cache resources

@@ -45,21 +45,30 @@ among-us-pwa/
 │   ├── database.py            # In-memory GameStore (dict of code → GameModel)
 │   ├── routes/
 │   │   ├── lobby.py           # Create/join game, settings, tasks, test mode
-│   │   ├── game.py            # Core gameplay: start, kill, meetings, voting, abilities (~1260 lines)
+│   │   ├── game.py            # Core gameplay: start, end, tasks, death, role info (~345 lines)
+│   │   ├── meetings.py        # Meetings & voting: start, vote, results (~470 lines)
+│   │   ├── abilities.py       # Role abilities: engineer, captain, guesser, vulture, etc. (~460 lines)
+│   │   ├── sabotage.py        # Sabotage: start, fix, timeout, status (~245 lines)
 │   │   └── websocket.py       # WS connection, state sync, reconnection
 │   ├── services/
 │   │   ├── game_logic.py      # Role assignment, task distribution, win conditions (~480 lines)
+│   │   ├── game_helpers.py    # Shared async helpers (bounty target reassignment)
 │   │   └── ws_manager.py      # WebSocket broadcast/send manager
 │   └── templates/
 │       ├── base.html          # PWA shell (manifest, service worker, icons)
 │       └── pages/
 │           ├── home.html      # Create/join game screen
-│           ├── game.html      # Main game UI — lobby, gameplay, meetings, voting (~2600 lines)
+│           ├── game.html      # Game UI HTML + CSS (~810 lines, JS extracted to static/js/)
 │           └── test_redirect.html  # Test mode auto-join
 ├── static/
 │   ├── css/styles.css         # All styling (~35KB)
-│   ├── js/app.js              # PWA service worker registration
-│   ├── sw.js                  # Service Worker
+│   ├── js/
+│   │   ├── app.js             # PWA service worker registration
+│   │   ├── game-core.js       # State vars, WebSocket, settings, game lifecycle (~1100 lines)
+│   │   ├── game-meeting.js    # Meeting phases, voting, guesser, swapper (~1060 lines)
+│   │   ├── game-abilities.js  # Role abilities, tasks, kill cooldown (~370 lines)
+│   │   └── game-sabotage.js   # Sabotage triggers, timers, fixes (~230 lines)
+│   ├── sw.js                  # Service Worker (caches all JS files)
 │   ├── icons/                 # PWA icons
 │   ├── images/maps/           # Game map images
 │   └── sounds/                # Sound effects (role reveal, meetings, voting, sabotage, win)
@@ -68,9 +77,17 @@ among-us-pwa/
 ### Key Files
 
 - **server/models.py** — Single source of truth for all data structures. Contains `GameModel`, `PlayerModel`, `GameSettings`, `MeetingState`, `ActiveSabotage`, all 18 `Role` enum values, `ROLE_CATEGORIES` mapping, and `ROLE_DESCRIPTIONS`.
-- **server/routes/game.py** — Largest file. All gameplay endpoints: start game, die, meetings, voting, sabotage, and every role ability endpoint.
+- **server/routes/game.py** — Core game endpoints: start/end game, tasks, death, sheriff shoot, player info, role guide.
+- **server/routes/meetings.py** — All meeting & voting logic: start meeting, gathering → voting → results phases, vote counting, elimination.
+- **server/routes/abilities.py** — Role ability endpoints: engineer fix, captain meeting, guesser guess, vulture eat, bounty kill, swapper swap, noise maker select.
+- **server/routes/sabotage.py** — Sabotage endpoints: start, fix, timeout check, status.
 - **server/services/game_logic.py** — Pure logic: `assign_roles()` (probability-based), `distribute_tasks()`, `check_win_conditions()`, `sheriff_shoot()`, `get_role_info()`.
-- **server/templates/pages/game.html** — Monolithic frontend. All screens (lobby, game, meeting, death) in one file with inline JavaScript.
+- **server/services/game_helpers.py** — Shared async helpers used by multiple route files (e.g., bounty target reassignment on death).
+- **static/js/game-core.js** — All state variables (globals shared by other JS files), WebSocket connection, message dispatch, settings UI, game lifecycle, initialization. Loads first.
+- **static/js/game-meeting.js** — Meeting phases, voting UI, vote casting, results display, guesser modal, swapper UI.
+- **static/js/game-abilities.js** — Role ability functions (engineer, captain, bounty, vulture, noise maker), task toggling, kill cooldown timer.
+- **static/js/game-sabotage.js** — Sabotage triggers, countdown timers, fix UI, impostor sabotage panel.
+- **server/templates/pages/game.html** — Game UI HTML + CSS only. JS extracted to external files. Contains inline `<script>` block with Jinja2 template variables and role constants that external JS files depend on.
 
 ### State Management
 
@@ -233,7 +250,7 @@ Each has: custom name, enable toggle, timer (0 = no countdown). Global cooldown 
 ## Known Architectural Notes
 
 - **No persistence** — Everything in memory. Intentional for simplicity. Games are ephemeral.
-- **Single-file frontend** — `game.html` is ~2600 lines with inline JS. Works but large.
+- **Global-scope JS** — All 4 JS files share global scope. `game-core.js` loads first and declares all state variables. Other files reference them as globals. Role constants (e.g., `IMPOSTOR_SABOTAGE_ROLES`, `REAL_TASK_ROLES`) are defined inline in `game.html` before any external JS loads.
 - **Hot reload** — `--reload` mode watches all files. Any file save restarts server and wipes games. Be careful during live testing.
 - **Session tokens** — UUIDs in localStorage. No user accounts. Anonymous play.
 - **Asyncio safety** — Game state mutations happen synchronously (no `await` between read and write), preventing race conditions despite async handlers.

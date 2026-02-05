@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 
-from .routes import lobby, game, websocket
+from .routes import lobby, game, meetings, abilities, sabotage, websocket
 
 # Get the project root directory
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,6 +29,9 @@ templates = Jinja2Templates(directory=BASE_DIR / "server" / "templates")
 # Include API routes
 app.include_router(lobby.router)
 app.include_router(game.router)
+app.include_router(meetings.router)
+app.include_router(abilities.router)
+app.include_router(sabotage.router)
 app.include_router(websocket.router)
 
 

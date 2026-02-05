@@ -375,6 +375,150 @@ class GameTester:
         print("="*60)
 
 
+def test_voting_scenarios():
+    """Test various voting outcomes"""
+    print("\n" + "="*60)
+    print("🗳️  VOTING SCENARIOS TEST SUITE")
+    print("="*60)
+
+    tester = GameTester(BASE_URL)
+
+    # Test 1: Everyone skips
+    print("\n📍 TEST: Everyone skips vote")
+    print("-" * 60)
+    host = tester.create_player("Host")
+    p2 = tester.create_player("Player2")
+    p3 = tester.create_player("Player3")
+    p4 = tester.create_player("Player4")
+
+    if tester.create_game(host):
+        for p in [p2, p3, p4]:
+            tester.join_game(p)
+        tester.players = [host, p2, p3, p4]
+
+        if tester.start_game(host):
+            # Start meeting
+            if tester.start_meeting(host):
+                time.sleep(0.5)
+                if tester.start_voting(host):
+                    time.sleep(6)  # Wait for discussion
+
+                    # Everyone skips
+                    for player in tester.players:
+                        tester.cast_vote(player, target_id=None)
+
+                    time.sleep(1)
+
+                    # Check result - no one should be eliminated
+                    state = tester.get_game_state(host)
+                    alive_count = sum(1 for p in state['players'] if p['status'] == 'alive')
+                    tester.assert_test(
+                        alive_count == 4,
+                        "Everyone skips → no elimination (4 players still alive)"
+                    )
+
+                    tester.end_meeting(host)
+
+    # Test 2: Majority votes for one player
+    print("\n📍 TEST: Majority votes for one player")
+    print("-" * 60)
+    tester2 = GameTester(BASE_URL)
+    host2 = tester2.create_player("Host2")
+    p2_2 = tester2.create_player("Player2")
+    p3_2 = tester2.create_player("Player3")
+    p4_2 = tester2.create_player("Player4")
+
+    if tester2.create_game(host2):
+        for p in [p2_2, p3_2, p4_2]:
+            tester2.join_game(p)
+        tester2.players = [host2, p2_2, p3_2, p4_2]
+
+        if tester2.start_game(host2):
+            # Get player IDs
+            for player in tester2.players:
+                info = tester2.get_player_info(player)
+                player.player_id = info['id'] if info else player.player_id
+
+            # Start meeting
+            if tester2.start_meeting(host2):
+                time.sleep(0.5)
+                if tester2.start_voting(host2):
+                    time.sleep(6)  # Wait for discussion
+
+                    # 3 vote for p2_2, 1 skips
+                    target_id = p2_2.player_id
+                    tester2.cast_vote(host2, target_id=target_id)
+                    tester2.cast_vote(p3_2, target_id=target_id)
+                    tester2.cast_vote(p4_2, target_id=target_id)
+                    tester2.cast_vote(p2_2, target_id=None)  # Target votes skip
+
+                    time.sleep(1)
+
+                    # Check result - p2_2 should be eliminated
+                    state = tester2.get_game_state(host2)
+                    eliminated_player = next((p for p in state['players'] if p['id'] == target_id), None)
+                    tester2.assert_test(
+                        eliminated_player and eliminated_player['status'] == 'dead',
+                        "Majority votes → player eliminated (target is dead)"
+                    )
+
+                    tester2.end_meeting(host2)
+
+    # Test 3: Tie vote
+    print("\n📍 TEST: Tie vote (2v2)")
+    print("-" * 60)
+    tester3 = GameTester(BASE_URL)
+    host3 = tester3.create_player("Host3")
+    p2_3 = tester3.create_player("Player2")
+    p3_3 = tester3.create_player("Player3")
+    p4_3 = tester3.create_player("Player4")
+
+    if tester3.create_game(host3):
+        for p in [p2_3, p3_3, p4_3]:
+            tester3.join_game(p)
+        tester3.players = [host3, p2_3, p3_3, p4_3]
+
+        if tester3.start_game(host3):
+            # Get player IDs
+            for player in tester3.players:
+                info = tester3.get_player_info(player)
+                player.player_id = info['id'] if info else player.player_id
+
+            # Start meeting
+            if tester3.start_meeting(host3):
+                time.sleep(0.5)
+                if tester3.start_voting(host3):
+                    time.sleep(6)  # Wait for discussion
+
+                    # 2 vote for p2_3, 2 vote for p3_3 (tie)
+                    tester3.cast_vote(host3, target_id=p2_3.player_id)
+                    tester3.cast_vote(p4_3, target_id=p2_3.player_id)
+                    tester3.cast_vote(p2_3, target_id=p3_3.player_id)
+                    tester3.cast_vote(p3_3, target_id=p3_3.player_id)
+
+                    time.sleep(1)
+
+                    # Check result - no one eliminated (tie)
+                    state = tester3.get_game_state(host3)
+                    alive_count = sum(1 for p in state['players'] if p['status'] == 'alive')
+                    tester3.assert_test(
+                        alive_count == 4,
+                        "Tie vote → no elimination (all 4 players still alive)"
+                    )
+
+                    tester3.end_meeting(host3)
+
+    # Print summary
+    print("\n" + "="*60)
+    print("VOTING SCENARIOS SUMMARY")
+    print("="*60)
+    total_passed = tester.tests_passed + tester2.tests_passed + tester3.tests_passed
+    total_failed = tester.tests_failed + tester2.tests_failed + tester3.tests_failed
+    print(f"✅ Passed: {total_passed}")
+    print(f"❌ Failed: {total_failed}")
+    print("="*60)
+
+
 def main():
     """Run the test suite"""
     print("="*60)
@@ -496,4 +640,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "voting":
+        # Run voting scenarios test
+        test_voting_scenarios()
+    else:
+        # Run basic flow test (default)
+        main()

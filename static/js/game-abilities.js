@@ -292,6 +292,55 @@ async function vultureEat(targetId, targetName) {
     }
 }
 
+// ==================== LOOKOUT ====================
+
+function openLookoutSelect() {
+    const modal = document.getElementById('lookout-modal');
+    const list = document.getElementById('lookout-player-list');
+
+    // Use lookoutSelectablePlayers from game state (populated in updateRoleUI)
+    const players = lookoutSelectablePlayers.length > 0
+        ? lookoutSelectablePlayers
+        : allPlayers.filter(p => p.status !== 'dead' && p.id !== playerId);
+
+    list.innerHTML = players.map(p => `
+        <button class="btn btn-secondary" onclick="selectLookoutTarget('${p.id}', '${p.name}')" style="width: 100%; margin-bottom: 6px; font-size: 14px;">
+            ${p.name}
+        </button>
+    `).join('');
+
+    if (players.length === 0) {
+        list.innerHTML = '<p style="color: #94a3b8; text-align: center;">No players to watch</p>';
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeLookoutModal() {
+    document.getElementById('lookout-modal').style.display = 'none';
+}
+
+async function selectLookoutTarget(targetId, targetName) {
+    closeLookoutModal();
+    try {
+        const resp = await fetch(`/api/games/${gameCode}/ability/lookout-select?session_token=${sessionToken}&target_player_id=${targetId}`, {
+            method: 'POST'
+        });
+        if (resp.ok) {
+            document.getElementById('lookout-target-name').textContent = targetName;
+        } else {
+            const data = await resp.json();
+            showError(data.detail || 'Failed to select target');
+        }
+    } catch (e) {
+        showError('Failed to select target');
+    }
+}
+
+function dismissLookoutAlert() {
+    document.getElementById('lookout-alert-overlay').style.display = 'none';
+}
+
 function showCooldownTimer() {
     const timerSection = document.getElementById('cooldown-timer');
 

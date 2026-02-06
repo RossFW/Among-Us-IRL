@@ -19,6 +19,17 @@ python test_game_flow.py all    # Run all automated tests
 - ✅ **Role Abilities** (varies): Engineer, Captain, Sheriff abilities
 - ✅ **Sabotage** (varies): Lights persistence, cooldowns
 - ✅ **Edge Cases** (varies): Dead players, invalid operations, ghost tasks
+- ✅ **Slot-Based Roles** (`slots`): Default settings, neutrals, advanced crew, full pipeline
+- ✅ **Executioner** (`executioner`): Target assignment, win on vote out, Jester fallback
+- ✅ **Lookout** (`lookout`): Player selection, self-watch rejection, post-meeting constraints
+
+**New test commands:**
+```bash
+python test_game_flow.py slots        # Slot-based role assignment
+python test_game_flow.py executioner  # Executioner mechanics
+python test_game_flow.py lookout      # Lookout mechanics
+python test_game_flow.py new          # All new tests (slots + executioner + lookout)
+```
 
 ---
 
@@ -124,6 +135,7 @@ Use this checklist for manual verification of features that require human testin
 - [ ] POST `/api/games/{code}/ability/vulture-eat` — Vulture eat body (win check)
 - [ ] POST `/api/games/{code}/ability/bounty-kill` — Bounty Hunter kill claim
 - [ ] POST `/api/games/{code}/ability/swapper-swap` — Swapper vote swap
+- [ ] POST `/api/games/{code}/ability/lookout-select` — Lookout watch target
 
 ---
 
@@ -135,11 +147,32 @@ Use this checklist for manual verification of features that require human testin
 
 ---
 
+## Slot-Based Role Assignment
+- [ ] **Neutrals counter** in lobby settings (+/- buttons work)
+- [ ] **Advanced Crew counter** in lobby settings (+/- buttons work)
+- [ ] All role toggles use unified system (no legacy toggle/config split)
+- [ ] Setting num_neutrals=1 + enabling Jester → Jester assigned
+- [ ] Setting num_advanced_crew=2 + enabling Sheriff/Engineer → both assigned
+- [ ] More slots than enabled roles → unfilled slots become Crewmate
+- [ ] Auto-adjust when total slots > player count
+
+## New Roles
+- [ ] **Executioner**: Target display shows crew player name
+- [ ] **Executioner**: Target voted out + Executioner voted for target → Executioner wins
+- [ ] **Executioner**: Target dies non-vote → Executioner becomes Jester (role_changed WS)
+- [ ] **Executioner**: Role changed notification displays in UI
+- [ ] **Lookout**: Selection modal shows players alive at last meeting
+- [ ] **Lookout**: Selecting a player updates "WATCHING" display
+- [ ] **Lookout**: Watched player killed outside meeting → popup overlay appears
+- [ ] **Lookout**: Watched player voted out in meeting → NO popup
+- [ ] **Lookout**: Popup has DISMISS button that closes it
+- [ ] **Lookout**: Cannot watch themselves (rejected)
+
 ## Integration & Edge Cases
 - [ ] **Bounty target reassignment**: Target dies in meeting → new target assigned
 - [ ] **Role constants**: All 5 constants load correctly (sabotage panel, tasks, etc.)
 - [ ] **Service worker**: New JS files cached (check Network tab)
-- [ ] Win conditions (crew task victory, impostor majority, jester, lone wolf, vulture)
+- [ ] Win conditions (crew task victory, impostor majority, jester, lone wolf, vulture, executioner)
 - [ ] Multiple games can run simultaneously (different codes)
 - [ ] Page refresh/reconnect restores correct state
 

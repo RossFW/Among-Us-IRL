@@ -197,17 +197,29 @@ async def update_settings(code: str, request: UpdateSettingsRequest, session_tok
     if request.vote_results_duration is not None:
         game.settings.vote_results_duration = max(5, min(30, request.vote_results_duration))
 
-    # Role configs (probability-based roles)
+    # Slot counts for role pools
+    if request.num_neutrals is not None:
+        game.settings.num_neutrals = max(0, min(5, request.num_neutrals))
+    if request.num_advanced_crew is not None:
+        game.settings.num_advanced_crew = max(0, min(8, request.num_advanced_crew))
+
+    # Role configs (pool-based roles)
     if request.role_configs is not None:
         for role_key, config_data in request.role_configs.items():
             if role_key in game.settings.role_configs:
                 current_config = game.settings.role_configs[role_key]
                 if "enabled" in config_data:
                     current_config.enabled = config_data["enabled"]
-                if "probability" in config_data:
-                    current_config.probability = max(0, min(100, config_data["probability"]))
-                if "max_count" in config_data:
-                    current_config.max_count = max(1, min(5, config_data["max_count"]))
+
+    # Sync legacy toggles with role_configs
+    if request.enable_jester is not None:
+        game.settings.role_configs["jester"].enabled = request.enable_jester
+    if request.enable_lone_wolf is not None:
+        game.settings.role_configs["lone_wolf"].enabled = request.enable_lone_wolf
+    if request.enable_minion is not None:
+        game.settings.role_configs["minion"].enabled = request.enable_minion
+    if request.enable_sheriff is not None:
+        game.settings.role_configs["sheriff"].enabled = request.enable_sheriff
 
     # Notify players
     await ws_manager.broadcast_to_game(game.code, {

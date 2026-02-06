@@ -13,7 +13,7 @@ uvicorn server.main:app --host 0.0.0.0 --port 8000
 
 **Terminal 2 - Start Tunnel:**
 ```bash
-cloudflared tunnel run --token eyJhIjoiNWVmYzVhYTAzNmI1Y2QyZmY5YWJmMGY2YjI4MTYzNzgiLCJ0IjoiNWJiYmMzZjYtMGI1OC00YzM1LThmYjUtNDdmN2ZkOTc4MTM0IiwicyI6IllXSXdZbVpoWVRVdE9Ea3lNaTAwTmpreUxXRXhPVFV0TXpnM01qWTJORGt5TTJNNSJ9
+cloudflared tunnel run --token eyJhIjoiNWVmYzVhYTAzNmI1Y2QyZmY5YWJmMGY2YjI4MTYzNzgiLCJ0IjoiNWJiYmMzZjYtMGI1OC00YzM1LThmYjUtNDdmN2ZkOTc4MTM0IiwicyI6IllXSXdZbVpoWVRVdE9Ea3lNaTAwTmpreUxXRXhPVFV0TXpnM01qWTJORGt5TTJNMSJ9
 ```
 
 ### Option 2: Background (One Terminal)
@@ -22,7 +22,7 @@ cloudflared tunnel run --token eyJhIjoiNWVmYzVhYTAzNmI1Y2QyZmY5YWJmMGY2YjI4MTYzN
 cd /Users/rosswilliams/Desktop/Among\ Us/among-us-pwa
 source venv/bin/activate
 uvicorn server.main:app --host 0.0.0.0 --port 8000 &
-cloudflared tunnel run --token eyJhIjoiNWVmYzVhYTAzNmI1Y2QyZmY5YWJmMGY2YjI4MTYzNzgiLCJ0IjoiNWJiYmMzZjYtMGI1OC00YzM1LThmYjUtNDdmN2ZkOTc4MTM0IiwicyI6IllXSXdZbVpoWVRVdE9Ea3lNaTAwTmpreUxXRXhPVFV0TXpnM01qWTJORGt5TTJNNSJ9
+cloudflared tunnel run --token eyJhIjoiNWVmYzVhYTAzNmI1Y2QyZmY5YWJmMGY2YjI4MTYzNzgiLCJ0IjoiNWJiYmMzZjYtMGI1OC00YzM1LThmYjUtNDdmN2ZkOTc4MTM0IiwicyI6IllXSXdZbVpoWVRVdE9Ea3lNaTAwTmpreUxXRXhPVFV0TXpnM01qWTJORGt5TTJNMSJ9
 ```
 
 ---

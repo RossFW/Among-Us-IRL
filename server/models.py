@@ -51,6 +51,10 @@ class Role(str, Enum):
     # New Neutral roles
     VULTURE = "Vulture"        # "Eat" X corpses to win
     NOISE_MAKER = "Noise Maker"  # When killed, select who "found" them
+    EXECUTIONER = "Executioner"  # Get your target voted out to win
+
+    # New Crewmate variant
+    LOOKOUT = "Lookout"        # Watch a player, get notified when they die
 
 
 # Map roles to their category for win conditions
@@ -72,7 +76,9 @@ ROLE_CATEGORIES = {
     Role.JESTER: RoleCategory.NEUTRAL,
     Role.LONE_WOLF: RoleCategory.NEUTRAL,
     Role.VULTURE: RoleCategory.NEUTRAL,
+    Role.EXECUTIONER: RoleCategory.NEUTRAL,
     Role.NOISE_MAKER: RoleCategory.CREW,
+    Role.LOOKOUT: RoleCategory.CREW,
 }
 
 
@@ -151,6 +157,8 @@ class PlayerModel(BaseModel):
     bounty_target_id: Optional[str] = None    # Bounty Hunter: current target player ID
     bounty_kills: int = 0                     # Bounty Hunter: successful bounty kills (reduces cooldown)
     noise_maker_target_id: Optional[str] = None  # Noise Maker: who will "find" them
+    executioner_target_id: Optional[str] = None  # Executioner: crew target to get voted out
+    lookout_target_id: Optional[str] = None      # Lookout: player being watched
 
 
 class RoleConfig(BaseModel):
@@ -163,28 +171,36 @@ class RoleConfig(BaseModel):
 class GameSettings(BaseModel):
     tasks_per_player: int = 5
     num_impostors: int = 1
-    # Legacy role toggles (kept for backwards compatibility)
+    num_neutrals: int = 0               # Total neutral role slots
+    num_advanced_crew: int = 0           # Total crew variant slots
+    # Legacy role toggles (kept for backwards compatibility, synced with role_configs)
     enable_jester: bool = False
     enable_lone_wolf: bool = False
     enable_minion: bool = False
     enable_sheriff: bool = False
-    # New probability-based role configs
+    # Role configs: enabled = in the pool for random selection
     role_configs: dict[str, RoleConfig] = Field(default_factory=lambda: {
         # Crewmate variants
+        "sheriff": RoleConfig(),
         "engineer": RoleConfig(),
         "captain": RoleConfig(),
         "mayor": RoleConfig(),
         "nice_guesser": RoleConfig(),
         "spy": RoleConfig(),
         "swapper": RoleConfig(),
+        "lookout": RoleConfig(),
         # Impostor variants
         "evil_guesser": RoleConfig(),
         "bounty_hunter": RoleConfig(),
         "cleaner": RoleConfig(),
         "venter": RoleConfig(),
+        "minion": RoleConfig(),
         # Neutral roles
+        "jester": RoleConfig(),
+        "lone_wolf": RoleConfig(),
         "vulture": RoleConfig(),
         "noise_maker": RoleConfig(),
+        "executioner": RoleConfig(),
     })
     # Per-character cooldown settings (in seconds)
     kill_cooldown: int = 45  # Legacy, kept for backwards compat
@@ -293,6 +309,8 @@ class GameModel(BaseModel):
     active_meeting: Optional[MeetingState] = None
     # Vulture: bodies that can no longer be eaten (discovered in meetings or voted out)
     vulture_ineligible_body_ids: list[str] = Field(default_factory=list)
+    # Lookout: snapshot of alive player IDs at end of last meeting (for selection constraint)
+    alive_at_last_meeting: list[str] = Field(default_factory=list)
 
     def get_task_completion_percentage(self) -> float:
         """Calculate task completion percentage (all crew-aligned roles)."""
@@ -335,6 +353,8 @@ class JoinGameRequest(BaseModel):
 class UpdateSettingsRequest(BaseModel):
     tasks_per_player: Optional[int] = None
     num_impostors: Optional[int] = None
+    num_neutrals: Optional[int] = None
+    num_advanced_crew: Optional[int] = None
     enable_jester: Optional[bool] = None
     enable_lone_wolf: Optional[bool] = None
     enable_minion: Optional[bool] = None
@@ -530,5 +550,19 @@ ROLE_DESCRIPTIONS = {
         "short": "Choose who finds your body",
         "description": "When you die, select another player. They get a fake 'body found' notification from your location.",
         "color": "#f59e0b"
+    },
+    "executioner": {
+        "name": "Executioner",
+        "category": "neutral",
+        "short": "Get your target voted out",
+        "description": "You have a crew target. If they get voted out while you're alive and you voted for them, you win! If your target dies another way, you become a Jester.",
+        "color": "#be185d"
+    },
+    "lookout": {
+        "name": "Lookout",
+        "category": "crew",
+        "short": "Watch over a player",
+        "description": "Select a player to watch. If they are killed outside of a meeting, you get an alert. Use this to gather information.",
+        "color": "#06b6d4"
     },
 }

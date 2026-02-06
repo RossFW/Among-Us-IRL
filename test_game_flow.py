@@ -272,22 +272,6 @@ class GameTester:
             self.assert_test(False, f"End meeting (error: {e})")
             return False
 
-    def mark_dead(self, player: Player, target_id: str) -> bool:
-        """Test: Mark a player as dead"""
-        try:
-            response = requests.post(
-                f"{self.base_url}/api/games/{self.game_code}/players/{target_id}/die",
-                params={"session_token": player.session_token}
-            )
-            self.assert_test(
-                response.status_code == 200,
-                f"Mark player dead"
-            )
-            return response.status_code == 200
-        except Exception as e:
-            self.assert_test(False, f"Mark dead (error: {e})")
-            return False
-
     def captain_meeting(self, player: Player) -> bool:
         """Test: Captain ability - remote meeting"""
         try:
@@ -356,7 +340,7 @@ class GameTester:
         """Test: Mark a player as dead"""
         try:
             response = requests.post(
-                f"{self.base_url}/api/games/{self.game_code}/players/{target_id}/die",
+                f"{self.base_url}/api/players/{target_id}/die",
                 params={"session_token": player.session_token}
             )
             self.assert_test(
@@ -897,8 +881,8 @@ def test_edge_cases():
                 if info:
                     player.player_id = info['id']
 
-            # Kill one player first
-            if tester.mark_dead(host, p2.player_id):
+            # Kill one player first (player marks themselves as dead)
+            if tester.mark_dead(p2, p2.player_id):
                 tester.assert_test(True, "Player marked as dead")
 
                 # Start meeting and voting
@@ -969,8 +953,8 @@ def test_edge_cases():
                 if info and info.get('tasks'):
                     task_id = info['tasks'][0]['id']
 
-                    # Kill the crewmate
-                    tester3.mark_dead(host3, crewmate.player_id)
+                    # Kill the crewmate (player marks themselves as dead)
+                    tester3.mark_dead(crewmate, crewmate.player_id)
                     time.sleep(0.5)
 
                     # Ghost tries to complete task (should work!)
@@ -1109,6 +1093,529 @@ def main():
     tester.print_summary()
 
 
+def test_slot_based_roles():
+    """Test the slot-based role assignment pipeline"""
+    print("\n" + "="*60)
+    print("🎰 SLOT-BASED ROLE ASSIGNMENT TEST SUITE")
+    print("="*60)
+
+    # Test 1: Default settings (1 impostor, 0 neutrals, 0 advanced crew)
+    print("\n📍 TEST: Default settings — all crew except 1 impostor")
+    print("-" * 60)
+    tester = GameTester(BASE_URL)
+    host = tester.create_player("Host")
+    players = [host]
+    for i in range(2, 6):
+        players.append(tester.create_player(f"P{i}"))
+
+    if tester.create_game(host):
+        for p in players[1:]:
+            tester.join_game(p)
+        tester.players = players
+
+        if tester.start_game(host):
+            roles = {}
+            for player in tester.players:
+                info = tester.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    roles[player.name] = player.role
+
+            print(f"   Roles: {roles}")
+            impostor_count = sum(1 for r in roles.values() if r in ['Impostor', 'Riddler', 'Rampager', 'Cleaner', 'Venter', 'Minion'])
+            crew_count = sum(1 for r in roles.values() if r in ['Crewmate', 'Sheriff', 'Engineer', 'Captain', 'Mayor', 'Bounty Hunter', 'Spy', 'Swapper', 'Noise Maker', 'Lookout'])
+            tester.assert_test(impostor_count == 1, f"Default: exactly 1 impostor (got {impostor_count})")
+            tester.assert_test(crew_count == 4, f"Default: 4 crew (got {crew_count})")
+
+    # Test 2: num_neutrals=1 with jester enabled
+    print("\n📍 TEST: 1 neutral slot with jester enabled")
+    print("-" * 60)
+    tester2 = GameTester(BASE_URL)
+    host2 = tester2.create_player("Host")
+    players2 = [host2]
+    for i in range(2, 7):
+        players2.append(tester2.create_player(f"P{i}"))
+
+    if tester2.create_game(host2):
+        for p in players2[1:]:
+            tester2.join_game(p)
+        tester2.players = players2
+
+        tester2.update_settings(host2, {
+            "num_neutrals": 1,
+            "role_configs": {"jester": {"enabled": True}}
+        })
+
+        if tester2.start_game(host2):
+            roles2 = {}
+            for player in tester2.players:
+                info = tester2.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    roles2[player.name] = player.role
+
+            print(f"   Roles: {roles2}")
+            has_jester = 'Jester' in roles2.values()
+            tester2.assert_test(has_jester, "1 neutral slot + jester enabled → Jester assigned")
+
+    # Test 3: num_advanced_crew=2 with sheriff and engineer enabled
+    print("\n📍 TEST: 2 advanced crew slots with sheriff + engineer")
+    print("-" * 60)
+    tester3 = GameTester(BASE_URL)
+    host3 = tester3.create_player("Host")
+    players3 = [host3]
+    for i in range(2, 8):
+        players3.append(tester3.create_player(f"P{i}"))
+
+    if tester3.create_game(host3):
+        for p in players3[1:]:
+            tester3.join_game(p)
+        tester3.players = players3
+
+        tester3.update_settings(host3, {
+            "num_advanced_crew": 2,
+            "role_configs": {
+                "sheriff": {"enabled": True},
+                "engineer": {"enabled": True}
+            }
+        })
+
+        if tester3.start_game(host3):
+            roles3 = {}
+            for player in tester3.players:
+                info = tester3.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    roles3[player.name] = player.role
+
+            print(f"   Roles: {roles3}")
+            advanced_crew = sum(1 for r in roles3.values() if r in ['Sheriff', 'Engineer'])
+            tester3.assert_test(advanced_crew == 2, f"2 advanced crew slots → 2 advanced crew roles (got {advanced_crew})")
+
+    # Test 4: More slots than enabled roles (should fill with defaults)
+    print("\n📍 TEST: 3 impostor slots, only 1 variant enabled → 1 variant + 2 base Impostors")
+    print("-" * 60)
+    tester4 = GameTester(BASE_URL)
+    host4 = tester4.create_player("Host")
+    players4 = [host4]
+    for i in range(2, 9):
+        players4.append(tester4.create_player(f"P{i}"))
+
+    if tester4.create_game(host4):
+        for p in players4[1:]:
+            tester4.join_game(p)
+        tester4.players = players4
+
+        tester4.update_settings(host4, {
+            "num_impostors": 3,
+            "role_configs": {
+                "evil_guesser": {"enabled": True}
+            }
+        })
+
+        if tester4.start_game(host4):
+            roles4 = {}
+            for player in tester4.players:
+                info = tester4.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    roles4[player.name] = player.role
+
+            print(f"   Roles: {roles4}")
+            total_imp = sum(1 for r in roles4.values() if r in ['Impostor', 'Riddler', 'Rampager', 'Cleaner', 'Venter', 'Minion'])
+            tester4.assert_test(total_imp == 3, f"3 impostor slots → 3 impostor-aligned (got {total_imp})")
+            base_imp = sum(1 for r in roles4.values() if r == 'Impostor')
+            tester4.assert_test(base_imp >= 2, f"Only 1 variant enabled → at least 2 base Impostors (got {base_imp})")
+
+    # Test 5: Full pipeline — all 3 categories
+    print("\n📍 TEST: Full pipeline — 2 impostors, 1 neutral, 2 crew variants")
+    print("-" * 60)
+    tester5 = GameTester(BASE_URL)
+    host5 = tester5.create_player("Host")
+    players5 = [host5]
+    for i in range(2, 11):
+        players5.append(tester5.create_player(f"P{i}"))
+
+    if tester5.create_game(host5):
+        for p in players5[1:]:
+            tester5.join_game(p)
+        tester5.players = players5
+
+        tester5.update_settings(host5, {
+            "num_impostors": 2,
+            "num_neutrals": 1,
+            "num_advanced_crew": 2,
+            "role_configs": {
+                "evil_guesser": {"enabled": True},
+                "bounty_hunter": {"enabled": True},
+                "jester": {"enabled": True},
+                "lone_wolf": {"enabled": True},
+                "sheriff": {"enabled": True},
+                "engineer": {"enabled": True},
+                "captain": {"enabled": True}
+            }
+        })
+
+        if tester5.start_game(host5):
+            roles5 = {}
+            for player in tester5.players:
+                info = tester5.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    roles5[player.name] = player.role
+
+            print(f"   Roles: {roles5}")
+            imp_count = sum(1 for r in roles5.values() if r in ['Impostor', 'Riddler', 'Rampager', 'Cleaner', 'Venter', 'Minion'])
+            neut_count = sum(1 for r in roles5.values() if r in ['Jester', 'Lone Wolf', 'Vulture', 'Executioner', 'Noise Maker'])
+            adv_crew = sum(1 for r in roles5.values() if r in ['Sheriff', 'Engineer', 'Captain', 'Mayor', 'Bounty Hunter', 'Spy', 'Swapper', 'Lookout'])
+            base_crew = sum(1 for r in roles5.values() if r == 'Crewmate')
+            tester5.assert_test(imp_count == 2, f"2 impostor slots → 2 impostors (got {imp_count})")
+            tester5.assert_test(neut_count == 1, f"1 neutral slot → 1 neutral (got {neut_count})")
+            tester5.assert_test(adv_crew == 2, f"2 crew slots → 2 advanced crew (got {adv_crew})")
+            tester5.assert_test(base_crew == 5, f"Remaining 5 → Crewmate (got {base_crew})")
+
+    # Print summary
+    print("\n" + "="*60)
+    print("SLOT-BASED ROLE ASSIGNMENT SUMMARY")
+    print("="*60)
+    total_passed = sum(t.tests_passed for t in [tester, tester2, tester3, tester4, tester5])
+    total_failed = sum(t.tests_failed for t in [tester, tester2, tester3, tester4, tester5])
+    print(f"✅ Passed: {total_passed}")
+    print(f"❌ Failed: {total_failed}")
+    print("="*60)
+
+
+def test_executioner():
+    """Test Executioner role mechanics"""
+    print("\n" + "="*60)
+    print("⚖️  EXECUTIONER TEST SUITE")
+    print("="*60)
+
+    # Test 1: Executioner gets a target on game start
+    print("\n📍 TEST: Executioner target assignment")
+    print("-" * 60)
+    tester = GameTester(BASE_URL)
+    host = tester.create_player("Host")
+    players = [host]
+    for i in range(2, 7):
+        players.append(tester.create_player(f"P{i}"))
+
+    if tester.create_game(host):
+        for p in players[1:]:
+            tester.join_game(p)
+        tester.players = players
+
+        tester.update_settings(host, {
+            "num_neutrals": 1,
+            "role_configs": {"executioner": {"enabled": True}}
+        })
+
+        if tester.start_game(host):
+            executioner = None
+            for player in tester.players:
+                info = tester.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    if player.role == 'Executioner':
+                        executioner = player
+                        target = info.get('executioner_target')
+                        tester.assert_test(
+                            target is not None and 'name' in target,
+                            f"Executioner has a target: {target.get('name') if target else 'None'}"
+                        )
+                        # Verify target is crew-aligned (not impostor)
+                        target_id = target['id'] if target else None
+                        target_player = next((p for p in tester.players if p.player_id == target_id), None)
+                        if target_player:
+                            target_info = tester.get_player_info(target_player)
+                            target_role = target_info.get('role') if target_info else None
+                            crew_roles = ['Crewmate', 'Sheriff', 'Engineer', 'Captain', 'Mayor', 'Bounty Hunter', 'Spy', 'Swapper', 'Noise Maker', 'Lookout']
+                            tester.assert_test(
+                                target_role in crew_roles,
+                                f"Executioner target is crew-aligned: {target_role}"
+                            )
+
+            if not executioner:
+                tester.assert_test(False, "No Executioner assigned (needed for test)")
+
+    # Test 2: Executioner wins when target is voted out
+    print("\n📍 TEST: Executioner wins when target voted out (and Exe voted for target)")
+    print("-" * 60)
+    tester2 = GameTester(BASE_URL)
+    host2 = tester2.create_player("Host")
+    players2 = [host2]
+    for i in range(2, 7):
+        players2.append(tester2.create_player(f"P{i}"))
+
+    if tester2.create_game(host2):
+        for p in players2[1:]:
+            tester2.join_game(p)
+        tester2.players = players2
+
+        tester2.update_settings(host2, {
+            "num_neutrals": 1,
+            "role_configs": {"executioner": {"enabled": True}}
+        })
+
+        if tester2.start_game(host2):
+            executioner2 = None
+            exec_target_id = None
+            for player in tester2.players:
+                info = tester2.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+                    if player.role == 'Executioner':
+                        executioner2 = player
+                        target = info.get('executioner_target')
+                        exec_target_id = target['id'] if target else None
+
+            if executioner2 and exec_target_id:
+                # Start meeting
+                non_exec_alive = [p for p in tester2.players if p.player_id != executioner2.player_id and p.role != 'Executioner']
+                caller = non_exec_alive[0] if non_exec_alive else host2
+
+                if tester2.start_meeting(caller):
+                    time.sleep(0.5)
+                    if tester2.start_voting(caller):
+                        time.sleep(6)
+                        # Everyone votes for the executioner's target
+                        for player in tester2.players:
+                            tester2.cast_vote(player, target_id=exec_target_id)
+
+                        time.sleep(1)
+
+                        # Check: game should end with Executioner win
+                        state = tester2.get_game_state(host2)
+                        tester2.assert_test(
+                            state and state.get('state') == 'ended',
+                            "Game ended after executioner's target voted out"
+                        )
+                        tester2.assert_test(
+                            state and state.get('winner') == 'Executioner',
+                            f"Winner is Executioner (got: {state.get('winner') if state else 'N/A'})"
+                        )
+            else:
+                tester2.assert_test(False, "No Executioner or no target found for voting test")
+
+    # Test 3: Executioner fallback to Jester when target dies outside vote
+    print("\n📍 TEST: Executioner becomes Jester when target dies non-vote")
+    print("-" * 60)
+    tester3 = GameTester(BASE_URL)
+    host3 = tester3.create_player("Host")
+    players3 = [host3]
+    for i in range(2, 7):
+        players3.append(tester3.create_player(f"P{i}"))
+
+    if tester3.create_game(host3):
+        for p in players3[1:]:
+            tester3.join_game(p)
+        tester3.players = players3
+
+        tester3.update_settings(host3, {
+            "num_neutrals": 1,
+            "role_configs": {"executioner": {"enabled": True}}
+        })
+
+        if tester3.start_game(host3):
+            executioner3 = None
+            exec_target_id3 = None
+            target_player3 = None
+            for player in tester3.players:
+                info = tester3.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+                    if player.role == 'Executioner':
+                        executioner3 = player
+                        target = info.get('executioner_target')
+                        exec_target_id3 = target['id'] if target else None
+
+            if executioner3 and exec_target_id3:
+                target_player3 = next((p for p in tester3.players if p.player_id == exec_target_id3), None)
+
+                if target_player3:
+                    # Kill the target via mark_dead (non-vote death)
+                    tester3.mark_dead(target_player3, target_player3.player_id)
+                    time.sleep(0.5)
+
+                    # Check: Executioner should now be Jester
+                    exec_info = tester3.get_player_info(executioner3)
+                    new_role = exec_info.get('role') if exec_info else None
+                    tester3.assert_test(
+                        new_role == 'Jester',
+                        f"Executioner became Jester after target died (role: {new_role})"
+                    )
+            else:
+                tester3.assert_test(False, "No Executioner or target for fallback test")
+
+    # Print summary
+    print("\n" + "="*60)
+    print("EXECUTIONER SUMMARY")
+    print("="*60)
+    total_passed = sum(t.tests_passed for t in [tester, tester2, tester3])
+    total_failed = sum(t.tests_failed for t in [tester, tester2, tester3])
+    print(f"✅ Passed: {total_passed}")
+    print(f"❌ Failed: {total_failed}")
+    print("="*60)
+
+
+def test_lookout():
+    """Test Lookout role mechanics"""
+    print("\n" + "="*60)
+    print("👁️  LOOKOUT TEST SUITE")
+    print("="*60)
+
+    # Test 1: Lookout can select a player to watch
+    print("\n📍 TEST: Lookout selection")
+    print("-" * 60)
+    tester = GameTester(BASE_URL)
+    host = tester.create_player("Host")
+    players = [host]
+    for i in range(2, 7):
+        players.append(tester.create_player(f"P{i}"))
+
+    if tester.create_game(host):
+        for p in players[1:]:
+            tester.join_game(p)
+        tester.players = players
+
+        tester.update_settings(host, {
+            "num_advanced_crew": 1,
+            "role_configs": {"lookout": {"enabled": True}}
+        })
+
+        if tester.start_game(host):
+            lookout = None
+            for player in tester.players:
+                info = tester.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+                    if player.role == 'Lookout':
+                        lookout = player
+                        selectable = info.get('lookout_selectable', [])
+                        tester.assert_test(
+                            len(selectable) > 0,
+                            f"Lookout has selectable players ({len(selectable)} available)"
+                        )
+
+            if lookout:
+                # Select a player to watch
+                other = next((p for p in tester.players if p.player_id != lookout.player_id and p.role != 'Impostor'), None)
+                if other:
+                    try:
+                        response = requests.post(
+                            f"{tester.base_url}/api/games/{tester.game_code}/ability/lookout-select",
+                            params={"session_token": lookout.session_token, "target_player_id": other.player_id}
+                        )
+                        tester.assert_test(
+                            response.status_code == 200,
+                            f"Lookout selected {other.name} to watch"
+                        )
+                    except Exception as e:
+                        tester.assert_test(False, f"Lookout select failed: {e}")
+
+                    # Verify via player info
+                    info = tester.get_player_info(lookout)
+                    if info:
+                        lookout_target = info.get('lookout_target')
+                        tester.assert_test(
+                            lookout_target and lookout_target.get('id') == other.player_id,
+                            f"Lookout target confirmed as {other.name}"
+                        )
+
+                # Test: Lookout cannot watch themselves
+                try:
+                    response = requests.post(
+                        f"{tester.base_url}/api/games/{tester.game_code}/ability/lookout-select",
+                        params={"session_token": lookout.session_token, "target_player_id": lookout.player_id}
+                    )
+                    tester.assert_test(
+                        response.status_code == 400,
+                        "Lookout cannot watch themselves (rejected)"
+                    )
+                except Exception as e:
+                    tester.assert_test(False, f"Lookout self-watch test failed: {e}")
+            else:
+                tester.assert_test(False, "No Lookout assigned")
+
+    # Test 2: Lookout selection constraint (only players alive at last meeting)
+    print("\n📍 TEST: Lookout selection constraint after meeting")
+    print("-" * 60)
+    tester2 = GameTester(BASE_URL)
+    host2 = tester2.create_player("Host")
+    players2 = [host2]
+    for i in range(2, 7):
+        players2.append(tester2.create_player(f"P{i}"))
+
+    if tester2.create_game(host2):
+        for p in players2[1:]:
+            tester2.join_game(p)
+        tester2.players = players2
+
+        tester2.update_settings(host2, {
+            "num_advanced_crew": 1,
+            "role_configs": {"lookout": {"enabled": True}},
+            "discussion_time": 1
+        })
+
+        if tester2.start_game(host2):
+            lookout2 = None
+            for player in tester2.players:
+                info = tester2.get_player_info(player)
+                if info:
+                    player.role = info.get('role')
+                    player.player_id = info['id']
+                    if player.role == 'Lookout':
+                        lookout2 = player
+
+            if lookout2:
+                # Kill a player
+                victim = next((p for p in tester2.players if p.player_id != lookout2.player_id and p.role not in ['Impostor', 'Lookout']), None)
+                if victim:
+                    tester2.mark_dead(victim, victim.player_id)
+                    time.sleep(0.3)
+
+                # Run a meeting and end it to snapshot alive players
+                alive_caller = next((p for p in tester2.players if p.role not in ['Lookout'] and p.player_id != (victim.player_id if victim else '')), None)
+                if alive_caller:
+                    if tester2.start_meeting(alive_caller):
+                        time.sleep(0.5)
+                        if tester2.start_voting(alive_caller):
+                            time.sleep(2)
+                            # Everyone skips
+                            for p in tester2.players:
+                                info_p = tester2.get_player_info(p)
+                                if info_p and info_p.get('status') == 'alive':
+                                    tester2.cast_vote(p, target_id=None)
+                            time.sleep(1)
+                            tester2.end_meeting(alive_caller)
+                            time.sleep(0.3)
+
+                # After meeting, lookout selectable should NOT include dead player
+                info2 = tester2.get_player_info(lookout2)
+                if info2:
+                    selectable2 = info2.get('lookout_selectable', [])
+                    dead_in_selectable = any(s['id'] == victim.player_id for s in selectable2) if victim else False
+                    tester2.assert_test(
+                        not dead_in_selectable,
+                        "Dead player not in Lookout selectable list after meeting"
+                    )
+            else:
+                tester2.assert_test(False, "No Lookout assigned for constraint test")
+
+    # Print summary
+    print("\n" + "="*60)
+    print("LOOKOUT SUMMARY")
+    print("="*60)
+    total_passed = tester.tests_passed + tester2.tests_passed
+    total_failed = tester.tests_failed + tester2.tests_failed
+    print(f"✅ Passed: {total_passed}")
+    print(f"❌ Failed: {total_failed}")
+    print("="*60)
+
+
 if __name__ == "__main__":
     import sys
 
@@ -1122,6 +1629,18 @@ if __name__ == "__main__":
             test_sabotage_scenarios()
         elif test_type == "edge":
             test_edge_cases()
+        elif test_type == "slots":
+            test_slot_based_roles()
+        elif test_type == "executioner":
+            test_executioner()
+        elif test_type == "lookout":
+            test_lookout()
+        elif test_type == "new":
+            test_slot_based_roles()
+            print("\n")
+            test_executioner()
+            print("\n")
+            test_lookout()
         elif test_type == "all":
             main()
             print("\n")
@@ -1132,9 +1651,15 @@ if __name__ == "__main__":
             test_sabotage_scenarios()
             print("\n")
             test_edge_cases()
+            print("\n")
+            test_slot_based_roles()
+            print("\n")
+            test_executioner()
+            print("\n")
+            test_lookout()
         else:
             print(f"Unknown test type: {test_type}")
-            print("Usage: python test_game_flow.py [voting|abilities|sabotage|edge|all]")
+            print("Usage: python test_game_flow.py [voting|abilities|sabotage|edge|slots|executioner|lookout|new|all]")
     else:
         # Run basic flow test (default)
         main()

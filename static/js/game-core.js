@@ -180,6 +180,29 @@ function handleMessage(msg) {
                 updateBountyKillButton();
             }
             break;
+        case 'role_changed':
+            // Executioner becomes Jester when target dies
+            if (msg.payload) {
+                myRole = msg.payload.new_role;
+                showError(msg.payload.reason || `You are now a ${msg.payload.new_role}!`);
+                // Update role display
+                document.getElementById('role-name').textContent = myRole.toUpperCase();
+                document.getElementById('role-name-badge').textContent = myRole.toUpperCase();
+                // Hide executioner section, show jester button
+                const execSection = document.getElementById('executioner-section');
+                if (execSection) execSection.style.display = 'none';
+                const jesterBtn = document.getElementById('jester-voted-btn');
+                if (jesterBtn && myRole === 'Jester') jesterBtn.style.display = 'block';
+            }
+            break;
+        case 'lookout_alert':
+            // Lookout: watched player died
+            if (msg.payload) {
+                const alertOverlay = document.getElementById('lookout-alert-overlay');
+                document.getElementById('lookout-alert-name').textContent = msg.payload.target_name;
+                alertOverlay.style.display = 'flex';
+            }
+            break;
     }
 }
 
@@ -252,6 +275,8 @@ function updatePlayers(players) {
 function updateSettingsUI() {
     document.getElementById('setting-tasks').textContent = settings.tasks_per_player;
     document.getElementById('setting-impostors').textContent = settings.num_impostors;
+    document.getElementById('setting-neutrals').textContent = settings.num_neutrals || 0;
+    document.getElementById('setting-advanced-crew').textContent = settings.num_advanced_crew || 0;
     // Per-character cooldowns
     document.getElementById('setting-impostor-cooldown').textContent = settings.impostor_kill_cooldown || settings.kill_cooldown;
     document.getElementById('setting-sheriff-cooldown').textContent = settings.sheriff_shoot_cooldown || settings.kill_cooldown;
@@ -266,15 +291,16 @@ function updateCooldownSettingsVisibility() {
     const cooldownSection = document.getElementById('cooldown-settings');
     const sheriffRow = document.getElementById('sheriff-cooldown-row');
     const lonewolfRow = document.getElementById('lonewolf-cooldown-row');
+    const rc = settings.role_configs || {};
 
     // Always show cooldown settings (impostor always has one)
     cooldownSection.style.display = 'block';
 
     // Show Sheriff cooldown row only if Sheriff is enabled
-    sheriffRow.style.display = settings.enable_sheriff ? 'flex' : 'none';
+    sheriffRow.style.display = (rc.sheriff && rc.sheriff.enabled) ? 'flex' : 'none';
 
     // Show Lone Wolf cooldown row only if Lone Wolf is enabled
-    lonewolfRow.style.display = settings.enable_lone_wolf ? 'flex' : 'none';
+    lonewolfRow.style.display = (rc.lone_wolf && rc.lone_wolf.enabled) ? 'flex' : 'none';
 }
 
 async function adjustSetting(type, delta) {
@@ -325,6 +351,14 @@ async function adjustSetting(type, delta) {
         const current = settings.vulture_eat_count || 3;
         const newVal = Math.max(1, Math.min(10, current + delta));
         update.vulture_eat_count = newVal;
+    } else if (type === 'neutrals') {
+        const current = settings.num_neutrals || 0;
+        const newVal = Math.max(0, Math.min(5, current + delta));
+        update.num_neutrals = newVal;
+    } else if (type === 'advanced_crew') {
+        const current = settings.num_advanced_crew || 0;
+        const newVal = Math.max(0, Math.min(8, current + delta));
+        update.num_advanced_crew = newVal;
     }
 
     await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
@@ -383,22 +417,19 @@ async function toggleAdvancedRole(roleKey) {
 
 function updateAdvancedRolesUI() {
     const roleConfigs = settings.role_configs || {};
-    const advancedRoles = ['engineer', 'captain', 'mayor', 'nice_guesser', 'spy', 'swapper',
-                          'evil_guesser', 'bounty_hunter', 'cleaner', 'venter', 'vulture', 'noise_maker'];
+    const allRoleKeys = [
+        'sheriff', 'engineer', 'captain', 'mayor', 'nice_guesser', 'spy', 'swapper', 'noise_maker', 'lookout',
+        'evil_guesser', 'bounty_hunter', 'cleaner', 'venter', 'minion',
+        'jester', 'lone_wolf', 'vulture', 'executioner'
+    ];
 
-    for (const roleKey of advancedRoles) {
+    for (const roleKey of allRoleKeys) {
         const checkbox = document.getElementById(`role-${roleKey}`);
         if (checkbox) {
             const config = roleConfigs[roleKey] || { enabled: false };
             checkbox.checked = config.enabled;
         }
     }
-
-    // Update legacy roles that are now in advanced section
-    document.getElementById('toggle-jester').checked = settings.enable_jester;
-    document.getElementById('toggle-lonewolf').checked = settings.enable_lone_wolf;
-    document.getElementById('toggle-minion').checked = settings.enable_minion;
-    document.getElementById('toggle-sheriff').checked = settings.enable_sheriff;
 
     // Show/hide vulture eat count sub-setting
     const vultureConfig = roleConfigs['vulture'] || { enabled: false };
@@ -542,17 +573,10 @@ function updateMeetingSettingsUI() {
 }
 
 async function toggleRole(role) {
-    let update = {};
-    if (role === 'jester') update.enable_jester = document.getElementById('toggle-jester').checked;
-    if (role === 'lonewolf') update.enable_lone_wolf = document.getElementById('toggle-lonewolf').checked;
-    if (role === 'minion') update.enable_minion = document.getElementById('toggle-minion').checked;
-    if (role === 'sheriff') update.enable_sheriff = document.getElementById('toggle-sheriff').checked;
-
-    await fetch(`/api/games/${gameCode}/settings?session_token=${sessionToken}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(update)
-    });
+    // Legacy function - redirect to toggleAdvancedRole with correct key
+    const keyMap = { 'jester': 'jester', 'lonewolf': 'lone_wolf', 'minion': 'minion', 'sheriff': 'sheriff' };
+    const roleKey = keyMap[role] || role;
+    return toggleAdvancedRole(roleKey);
 }
 
 async function startGame() {
@@ -638,6 +662,8 @@ function updateRoleUI(roleInfo) {
         'Bounty Hunter': 'CREWMATE',
         'Spy': 'CREWMATE',
         'Swapper': 'CREWMATE',
+        'Noise Maker': 'CREWMATE',
+        'Lookout': 'CREWMATE',
         // Impostor team
         'Impostor': 'IMPOSTOR',
         'Riddler': 'IMPOSTOR',
@@ -649,7 +675,7 @@ function updateRoleUI(roleInfo) {
         'Jester': 'NEUTRAL',
         'Lone Wolf': 'NEUTRAL',
         'Vulture': 'NEUTRAL',
-        'Noise Maker': 'CREWMATE'
+        'Executioner': 'NEUTRAL'
     };
     const team = teams[roleInfo.role] || 'CREWMATE';
     roleTeam.textContent = team;
@@ -676,7 +702,9 @@ function updateRoleUI(roleInfo) {
         'Jester': 'Get yourself voted out to win!',
         'Lone Wolf': 'Survive until you\'re the last one standing.',
         'Vulture': `Eat ${roleInfo.bodies_needed || 3} bodies to win. Touch body & tell dead player to act alive.`,
-        'Noise Maker': 'When killed, select who "found" you (fake body report).'
+        'Noise Maker': 'When killed, select who "found" you (fake body report).',
+        'Executioner': `Get ${roleInfo.executioner_target ? roleInfo.executioner_target.name : 'your target'} voted out to win! If they die another way, you become a Jester.`,
+        'Lookout': 'Select a player to watch. You\'ll be alerted if they are killed outside meetings.'
     };
     roleDesc.textContent = descriptions[roleInfo.role] || '';
 
@@ -762,6 +790,33 @@ function updateRoleUI(roleInfo) {
     } else {
         bountySection.style.display = 'none';
     }
+
+    // Show Executioner section
+    const execSection = document.getElementById('executioner-section');
+    if (roleInfo.role === 'Executioner') {
+        execSection.style.display = 'block';
+        if (roleInfo.executioner_target) {
+            document.getElementById('executioner-target-name').textContent = roleInfo.executioner_target.name;
+        } else {
+            document.getElementById('executioner-target-name').textContent = 'No target';
+        }
+    } else {
+        execSection.style.display = 'none';
+    }
+
+    // Show Lookout section
+    const lookoutSection = document.getElementById('lookout-section');
+    if (roleInfo.role === 'Lookout') {
+        lookoutSection.style.display = 'block';
+        lookoutSelectablePlayers = roleInfo.lookout_selectable || [];
+        if (roleInfo.lookout_target) {
+            document.getElementById('lookout-target-name').textContent = roleInfo.lookout_target.name;
+        } else {
+            document.getElementById('lookout-target-name').textContent = 'No one';
+        }
+    } else {
+        lookoutSection.style.display = 'none';
+    }
 }
 
 function updateProgress(percentage) {
@@ -843,6 +898,8 @@ function handleGameEnd(payload) {
         playSound('sound-lonewolf-win');
     } else if (winner === 'vulture') {
         playSound('sound-vulture-win');
+    } else if (winner === 'executioner') {
+        playSound('sound-jester-win');  // Reuse jester win sound for executioner
     }
 
     // Vibrate
@@ -951,11 +1008,12 @@ async function removeTask(taskName) {
 // === Rules, Map Gallery, Role Guide ===
 
 function showRules() {
-    // Update which rules are visible based on settings
-    document.getElementById('rule-jester').style.display = settings.enable_jester ? 'block' : 'none';
-    document.getElementById('rule-lonewolf').style.display = settings.enable_lone_wolf ? 'block' : 'none';
-    document.getElementById('rule-minion').style.display = settings.enable_minion ? 'block' : 'none';
-    document.getElementById('rule-sheriff').style.display = settings.enable_sheriff ? 'block' : 'none';
+    // Update which rules are visible based on role_configs
+    const rc = settings.role_configs || {};
+    document.getElementById('rule-jester').style.display = (rc.jester && rc.jester.enabled) ? 'block' : 'none';
+    document.getElementById('rule-lonewolf').style.display = (rc.lone_wolf && rc.lone_wolf.enabled) ? 'block' : 'none';
+    document.getElementById('rule-minion').style.display = (rc.minion && rc.minion.enabled) ? 'block' : 'none';
+    document.getElementById('rule-sheriff').style.display = (rc.sheriff && rc.sheriff.enabled) ? 'block' : 'none';
 
     document.getElementById('rules-modal').style.display = 'flex';
 }

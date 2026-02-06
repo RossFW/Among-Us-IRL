@@ -8,6 +8,7 @@ from ..services.game_logic import (
     start_game, complete_task, uncomplete_task, mark_player_dead,
     check_win_conditions, get_role_info, get_all_roles, sheriff_shoot
 )
+from ..services.game_helpers import check_and_reassign_bounty_targets, check_executioner_fallback, check_lookout_notify
 
 router = APIRouter(prefix="/api", tags=["game"])
 
@@ -175,6 +176,11 @@ async def mark_dead_endpoint(player_id: str, session_token: str):
         }
     })
 
+    # Handle role-specific reactions to death
+    await check_and_reassign_bounty_targets(game, player.id)
+    await check_executioner_fallback(game, player.id)
+    await check_lookout_notify(game, player.id)
+
     # Check win conditions
     winner = check_win_conditions(game)
     if winner:
@@ -260,6 +266,12 @@ async def sheriff_shoot_endpoint(target_id: str, session_token: str):
         }
     })
 
+    # Handle role-specific reactions to death
+    dead_id = shoot_result["dead_player_id"]
+    await check_and_reassign_bounty_targets(game, dead_id)
+    await check_executioner_fallback(game, dead_id)
+    await check_lookout_notify(game, dead_id)
+
     # Check win conditions
     winner = check_win_conditions(game)
     if winner:
@@ -318,17 +330,7 @@ async def get_role_guide(code: str, session_token: str = None):
     s = game.settings
     enabled_roles = ["crewmate", "impostor"]
 
-    # Legacy toggle roles
-    if s.enable_jester:
-        enabled_roles.append("jester")
-    if s.enable_lone_wolf:
-        enabled_roles.append("lone_wolf")
-    if s.enable_minion:
-        enabled_roles.append("minion")
-    if s.enable_sheriff:
-        enabled_roles.append("sheriff")
-
-    # Probability-based roles
+    # All roles are now in role_configs
     for key, config in s.role_configs.items():
         if config.enabled and key not in enabled_roles:
             enabled_roles.append(key)

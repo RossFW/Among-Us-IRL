@@ -16,140 +16,111 @@ def roll_probability(probability: int) -> bool:
     return random.randint(1, 100) <= probability
 
 
+# Maps role config keys to Role enum values
+ROLE_MAP = {
+    "impostor": Role.IMPOSTOR,
+    "crewmate": Role.CREWMATE,
+    # Impostor variants
+    "evil_guesser": Role.EVIL_GUESSER,
+    "bounty_hunter": Role.BOUNTY_HUNTER,
+    "cleaner": Role.CLEANER,
+    "venter": Role.VENTER,
+    "minion": Role.MINION,
+    # Neutral roles
+    "jester": Role.JESTER,
+    "lone_wolf": Role.LONE_WOLF,
+    "vulture": Role.VULTURE,
+    "noise_maker": Role.NOISE_MAKER,
+    "executioner": Role.EXECUTIONER,
+    # Crew variants
+    "sheriff": Role.SHERIFF,
+    "engineer": Role.ENGINEER,
+    "captain": Role.CAPTAIN,
+    "mayor": Role.MAYOR,
+    "nice_guesser": Role.NICE_GUESSER,
+    "spy": Role.SPY,
+    "swapper": Role.SWAPPER,
+    "lookout": Role.LOOKOUT,
+}
+
+# Pool definitions: which config keys belong to each category
+IMPOSTOR_VARIANT_KEYS = ["evil_guesser", "bounty_hunter", "cleaner", "venter", "minion"]
+NEUTRAL_ROLE_KEYS = ["jester", "lone_wolf", "vulture", "noise_maker", "executioner"]
+CREW_VARIANT_KEYS = ["sheriff", "engineer", "captain", "mayor", "nice_guesser", "spy", "swapper", "lookout"]
+
+
 def assign_roles(game: GameModel) -> bool:
     """
-    Assign roles to all players in the game.
-    Returns True if successful, False if not enough players.
+    Assign roles using slot-based system.
 
-    Supports probability-based role selection for new roles.
+    - num_impostors: filled from enabled impostor variants, rest base Impostor
+    - num_neutrals: filled from enabled neutral roles
+    - num_advanced_crew: filled from enabled crew variants
+    - Remaining players become Crewmate
     """
     players = list(game.players.values())
     num_players = len(players)
     settings = game.settings
 
-    # Calculate total guaranteed special roles
-    total_special = settings.num_impostors
-    if settings.enable_jester:
-        total_special += 1
-    if settings.enable_lone_wolf:
-        total_special += 1
-    if settings.enable_minion:
-        total_special += 1
-    if settings.enable_sheriff:
-        total_special += 1
-
-    # Validate player count
+    # Validate: need at least 1 crewmate after all special slots
+    total_special = settings.num_impostors + settings.num_neutrals + settings.num_advanced_crew
     if num_players < total_special + 1:
         return False
 
     # Shuffle players for random assignment
     random.shuffle(players)
-
     role_index = 0
-    assigned_roles = {}  # Track counts by role key
 
-    # === PHASE 1: Assign Impostors (may be variants) ===
-    impostor_variants = []
-    for key in ["evil_guesser", "bounty_hunter", "cleaner", "venter"]:
-        config = settings.role_configs.get(key, RoleConfig())
-        if config.enabled and roll_probability(config.probability):
-            impostor_variants.extend([key] * config.max_count)
-
-    # Shuffle and limit to num_impostors
-    random.shuffle(impostor_variants)
-    impostor_variants = impostor_variants[:settings.num_impostors]
-
+    # === PHASE 1: Impostor slots ===
+    enabled_imp = [k for k in IMPOSTOR_VARIANT_KEYS
+                   if settings.role_configs.get(k, RoleConfig()).enabled]
+    random.shuffle(enabled_imp)
+    imp_to_assign = enabled_imp[:settings.num_impostors]
     # Fill remaining impostor slots with base Impostor
-    while len(impostor_variants) < settings.num_impostors:
-        impostor_variants.append("impostor")
-
-    # Assign impostor roles
-    role_map = {
-        "impostor": Role.IMPOSTOR,
-        "evil_guesser": Role.EVIL_GUESSER,
-        "bounty_hunter": Role.BOUNTY_HUNTER,
-        "cleaner": Role.CLEANER,
-        "venter": Role.VENTER,
-    }
-    for variant in impostor_variants:
-        players[role_index].role = role_map[variant]
-        # Initialize bounty hunter target
-        if variant == "bounty_hunter":
-            # Will set target after all roles assigned
-            pass
+    while len(imp_to_assign) < settings.num_impostors:
+        imp_to_assign.append("impostor")
+    random.shuffle(imp_to_assign)
+    for key in imp_to_assign:
+        players[role_index].role = ROLE_MAP[key]
         role_index += 1
 
-    # === PHASE 2: Assign legacy special roles ===
-    if settings.enable_jester:
-        players[role_index].role = Role.JESTER
+    # === PHASE 2: Neutral slots ===
+    enabled_neut = [k for k in NEUTRAL_ROLE_KEYS
+                    if settings.role_configs.get(k, RoleConfig()).enabled]
+    random.shuffle(enabled_neut)
+    neut_to_assign = enabled_neut[:settings.num_neutrals]
+    for key in neut_to_assign:
+        players[role_index].role = ROLE_MAP[key]
         role_index += 1
 
-    if settings.enable_lone_wolf:
-        players[role_index].role = Role.LONE_WOLF
+    # === PHASE 3: Crew variant slots ===
+    enabled_crew = [k for k in CREW_VARIANT_KEYS
+                    if settings.role_configs.get(k, RoleConfig()).enabled]
+    random.shuffle(enabled_crew)
+    crew_to_assign = enabled_crew[:settings.num_advanced_crew]
+    for key in crew_to_assign:
+        players[role_index].role = ROLE_MAP[key]
         role_index += 1
 
-    if settings.enable_minion:
-        players[role_index].role = Role.MINION
-        role_index += 1
-
-    if settings.enable_sheriff:
-        players[role_index].role = Role.SHERIFF
-        role_index += 1
-
-    # === PHASE 3: Assign new neutral roles (probability-based) ===
-    neutral_roles = []
-    for key in ["vulture", "noise_maker"]:
-        config = settings.role_configs.get(key, RoleConfig())
-        if config.enabled and roll_probability(config.probability):
-            for _ in range(min(config.max_count, num_players - role_index)):
-                neutral_roles.append(key)
-
-    neutral_map = {
-        "vulture": Role.VULTURE,
-        "noise_maker": Role.NOISE_MAKER,
-    }
-    for neutral_key in neutral_roles:
-        if role_index < num_players:
-            players[role_index].role = neutral_map[neutral_key]
-            role_index += 1
-
-    # === PHASE 4: Assign crewmate variants (probability-based) ===
-    crew_variants = []
-    for key in ["engineer", "captain", "mayor", "nice_guesser", "spy", "swapper"]:
-        config = settings.role_configs.get(key, RoleConfig())
-        if config.enabled and roll_probability(config.probability):
-            for _ in range(config.max_count):
-                crew_variants.append(key)
-
-    random.shuffle(crew_variants)
-    crew_map = {
-        "engineer": Role.ENGINEER,
-        "captain": Role.CAPTAIN,
-        "mayor": Role.MAYOR,
-        "nice_guesser": Role.NICE_GUESSER,
-        "spy": Role.SPY,
-        "swapper": Role.SWAPPER,
-    }
-
-    # Assign crew variants
-    for crew_key in crew_variants:
-        if role_index < num_players:
-            players[role_index].role = crew_map[crew_key]
-            role_index += 1
-
-    # === PHASE 5: Fill remaining with Crewmate ===
+    # === PHASE 4: Fill remaining with Crewmate ===
     while role_index < num_players:
         players[role_index].role = Role.CREWMATE
         role_index += 1
 
     # === POST-ASSIGNMENT: Setup role-specific state ===
-    # Initialize Bounty Hunter targets
+    # Bounty Hunter (Rampager) targets
     alive_non_impostors = [p for p in players if ROLE_CATEGORIES.get(p.role) != RoleCategory.IMPOSTOR]
     for player in players:
         if player.role == Role.BOUNTY_HUNTER and alive_non_impostors:
             player.bounty_target_id = random.choice(alive_non_impostors).id
 
-    # Spy appears in impostor list (handled in get_role_info)
+    # Executioner targets (random crew-aligned player, not themselves)
+    crew_players = [p for p in players if ROLE_CATEGORIES.get(p.role) == RoleCategory.CREW]
+    for player in players:
+        if player.role == Role.EXECUTIONER and crew_players:
+            valid_targets = [p for p in crew_players if p.id != player.id]
+            if valid_targets:
+                player.executioner_target_id = random.choice(valid_targets).id
 
     return True
 
@@ -219,31 +190,35 @@ def start_game(game: GameModel) -> dict:
     if num_players < 4:
         return {"success": False, "error": "Need at least 4 players"}
 
-    # Calculate total special roles needed
-    total_special = game.settings.num_impostors
-    if game.settings.enable_jester:
-        total_special += 1
-    if game.settings.enable_lone_wolf:
-        total_special += 1
-    if game.settings.enable_minion:
-        total_special += 1
-    if game.settings.enable_sheriff:
-        total_special += 1
-
+    settings = game.settings
     adjustments = []
 
-    # Auto-adjust impostors if too many for player count
-    # Need at least 1 crewmate, so: impostors + other_special < num_players
-    other_special = total_special - game.settings.num_impostors
-    max_impostors = num_players - other_special - 1  # Leave room for 1 crewmate
+    # Total special slots (must leave at least 1 for Crewmate)
+    total_special = settings.num_impostors + settings.num_neutrals + settings.num_advanced_crew
+    max_special = num_players - 1  # Leave room for 1 crewmate
 
-    if max_impostors < 1:
-        return {"success": False, "error": f"Not enough players for special roles. Need at least {other_special + 2} players."}
+    if total_special > max_special:
+        # Auto-adjust: reduce impostors first, then neutrals, then crew
+        remaining = max_special
+        old_imp = settings.num_impostors
+        settings.num_impostors = min(settings.num_impostors, remaining)
+        remaining -= settings.num_impostors
+        if settings.num_impostors < old_imp:
+            adjustments.append(f"Impostors reduced from {old_imp} to {settings.num_impostors}")
 
-    if game.settings.num_impostors > max_impostors:
-        old_count = game.settings.num_impostors
-        game.settings.num_impostors = max_impostors
-        adjustments.append(f"Impostors reduced from {old_count} to {max_impostors}")
+        old_neut = settings.num_neutrals
+        settings.num_neutrals = min(settings.num_neutrals, remaining)
+        remaining -= settings.num_neutrals
+        if settings.num_neutrals < old_neut:
+            adjustments.append(f"Neutrals reduced from {old_neut} to {settings.num_neutrals}")
+
+        old_crew = settings.num_advanced_crew
+        settings.num_advanced_crew = min(settings.num_advanced_crew, remaining)
+        if settings.num_advanced_crew < old_crew:
+            adjustments.append(f"Advanced crew reduced from {old_crew} to {settings.num_advanced_crew}")
+
+    if settings.num_impostors < 1:
+        return {"success": False, "error": "Need at least 1 impostor"}
 
     # Assign roles
     if not assign_roles(game):
@@ -487,6 +462,31 @@ def get_role_info(player: PlayerModel, game: GameModel) -> dict:
 
     if player.role == Role.SWAPPER:
         info["swapper_targets"] = player.swapper_targets
+
+    if player.role == Role.EXECUTIONER:
+        if player.executioner_target_id:
+            target = game.players.get(player.executioner_target_id)
+            if target:
+                info["executioner_target"] = {"id": target.id, "name": target.name}
+
+    if player.role == Role.LOOKOUT:
+        if player.lookout_target_id:
+            target = game.players.get(player.lookout_target_id)
+            if target:
+                info["lookout_target"] = {"id": target.id, "name": target.name}
+        # Send list of selectable players (alive at last meeting, or all if no meeting yet)
+        if game.alive_at_last_meeting:
+            info["lookout_selectable"] = [
+                {"id": p.id, "name": p.name}
+                for p in game.players.values()
+                if p.id in game.alive_at_last_meeting and p.id != player.id and p.status == PlayerStatus.ALIVE
+            ]
+        else:
+            info["lookout_selectable"] = [
+                {"id": p.id, "name": p.name}
+                for p in game.players.values()
+                if p.id != player.id and p.status == PlayerStatus.ALIVE
+            ]
 
     return info
 

@@ -35,6 +35,22 @@
                         <button class="btn-small" onclick="adjustSetting('impostors', 1)">+</button>
                     </div>
                 </div>
+                <div class="setting">
+                    <label>Neutrals</label>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('neutrals', -1)">-</button>
+                        <span id="setting-neutrals">0</span>
+                        <button class="btn-small" onclick="adjustSetting('neutrals', 1)">+</button>
+                    </div>
+                </div>
+                <div class="setting">
+                    <label>Advanced Crew</label>
+                    <div class="number-control">
+                        <button class="btn-small" onclick="adjustSetting('advanced_crew', -1)">-</button>
+                        <span id="setting-advanced-crew">0</span>
+                        <button class="btn-small" onclick="adjustSetting('advanced_crew', 1)">+</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Advanced Roles Settings -->
@@ -49,7 +65,7 @@
                         <h5 class="category-crew">Crewmate Variants</h5>
                         <div class="role-config-item">
                             <label class="toggle">
-                                <input type="checkbox" id="toggle-sheriff" onchange="toggleRole('sheriff')">
+                                <input type="checkbox" id="role-sheriff" onchange="toggleAdvancedRole('sheriff')">
                                 <span>Sheriff</span>
                             </label>
                             <span class="role-desc">Shoot impostors (miss = die)</span>
@@ -80,7 +96,7 @@
                                 <input type="checkbox" id="role-nice_guesser" onchange="toggleAdvancedRole('nice_guesser')">
                                 <span>Bounty Hunter</span>
                             </label>
-                            <span class="role-desc">Guess roles (risky!)</span>
+                            <span class="role-desc">Guess if someone is impostor</span>
                         </div>
                         <div class="role-config-item">
                             <label class="toggle">
@@ -103,6 +119,13 @@
                             </label>
                             <span class="role-desc">Choose who finds you</span>
                         </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-lookout" onchange="toggleAdvancedRole('lookout')">
+                                <span>Lookout</span>
+                            </label>
+                            <span class="role-desc">Watch a player, know when they die</span>
+                        </div>
                     </div>
 
                     <!-- Impostor Variants -->
@@ -113,7 +136,7 @@
                                 <input type="checkbox" id="role-evil_guesser" onchange="toggleAdvancedRole('evil_guesser')">
                                 <span>Riddler</span>
                             </label>
-                            <span class="role-desc">Guess roles (risky!)</span>
+                            <span class="role-desc">Guess exact roles (risky!)</span>
                         </div>
                         <div class="role-config-item">
                             <label class="toggle">
@@ -136,6 +159,13 @@
                             </label>
                             <span class="role-desc">Can go outside/through vents</span>
                         </div>
+                        <div class="role-config-item">
+                            <label class="toggle">
+                                <input type="checkbox" id="role-minion" onchange="toggleAdvancedRole('minion')">
+                                <span>Minion</span>
+                            </label>
+                            <span class="role-desc">Wins with impostors (blind)</span>
+                        </div>
                     </div>
 
                     <!-- Neutral Roles -->
@@ -143,14 +173,14 @@
                         <h5 class="category-neutral">Neutral Roles</h5>
                         <div class="role-config-item">
                             <label class="toggle">
-                                <input type="checkbox" id="toggle-jester" onchange="toggleRole('jester')">
+                                <input type="checkbox" id="role-jester" onchange="toggleAdvancedRole('jester')">
                                 <span>Jester</span>
                             </label>
                             <span class="role-desc">Get voted out to win</span>
                         </div>
                         <div class="role-config-item">
                             <label class="toggle">
-                                <input type="checkbox" id="toggle-lonewolf" onchange="toggleRole('lonewolf')">
+                                <input type="checkbox" id="role-lone_wolf" onchange="toggleAdvancedRole('lone_wolf')">
                                 <span>Lone Wolf</span>
                             </label>
                             <span class="role-desc">Kill everyone to win</span>
@@ -168,17 +198,12 @@
                                 <button class="btn btn-tiny" onclick="adjustSetting('vulture_eat_count', 1)">+</button>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Special Roles -->
-                    <div class="role-category">
-                        <h5 class="category-special">Special Roles</h5>
                         <div class="role-config-item">
                             <label class="toggle">
-                                <input type="checkbox" id="toggle-minion" onchange="toggleRole('minion')">
-                                <span>Minion</span>
+                                <input type="checkbox" id="role-executioner" onchange="toggleAdvancedRole('executioner')">
+                                <span>Executioner</span>
                             </label>
-                            <span class="role-desc">Wins with impostors (blind)</span>
+                            <span class="role-desc">Get your target voted out</span>
                         </div>
                     </div>
                 </div>
@@ -468,6 +493,24 @@
                 </div>
             </div>
 
+            <!-- Executioner: Target display -->
+            <div id="executioner-section" class="ability-section" style="display: none;">
+                <div class="bounty-target-display" style="background: rgba(190,24,93,0.2); border: 1px solid #be185d; border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center;">
+                    <span style="color: #94a3b8; font-size: 12px;">YOUR TARGET</span>
+                    <div id="executioner-target-name" style="color: #be185d; font-size: 20px; font-weight: bold;"></div>
+                    <div style="color: #94a3b8; font-size: 11px; margin-top: 4px;">Get them voted out to win!</div>
+                </div>
+            </div>
+
+            <!-- Lookout: Watch selection -->
+            <div id="lookout-section" class="ability-section" style="display: none;">
+                <div style="background: rgba(6,182,212,0.2); border: 1px solid #06b6d4; border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center;">
+                    <span style="color: #94a3b8; font-size: 12px;">WATCHING</span>
+                    <div id="lookout-target-name" style="color: #06b6d4; font-size: 20px; font-weight: bold;">No one</div>
+                </div>
+                <button class="btn btn-secondary" id="lookout-select-btn" onclick="openLookoutSelect()" style="width: 100%; font-size: 13px;">SELECT PLAYER TO WATCH</button>
+            </div>
+
             <div id="fellow-impostors" class="fellow-impostors" style="display: none;">
                 <span class="label">Fellow Impostors:</span>
                 <span id="impostor-names"></span>
@@ -708,6 +751,29 @@
     </div>
 </div>
 
+<!-- Lookout Selection Modal -->
+<div id="lookout-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 350px;">
+        <div class="modal-header">
+            <h2 style="color: #06b6d4;">Select Player to Watch</h2>
+            <button class="modal-close" onclick="closeLookoutModal()">&times;</button>
+        </div>
+        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 10px;">You'll be alerted if they are killed outside of a meeting.</p>
+        <div id="lookout-player-list" style="max-height: 50vh; overflow-y: auto;">
+            <!-- Populated with selectable players -->
+        </div>
+    </div>
+</div>
+
+<!-- Lookout Alert Overlay -->
+<div id="lookout-alert-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center;">
+    <div style="text-align: center; padding: 30px;">
+        <div style="color: #ef4444; font-size: 28px; font-weight: bold; margin-bottom: 10px;">YOUR WATCHED PLAYER HAS DIED</div>
+        <div id="lookout-alert-name" style="color: #06b6d4; font-size: 24px; font-weight: bold; margin-bottom: 20px;"></div>
+        <button class="btn btn-secondary btn-large" onclick="dismissLookoutAlert()" style="min-width: 150px;">DISMISS</button>
+    </div>
+</div>
+
 <!-- Noise Maker Selection Modal -->
 <div id="noise-maker-modal" class="modal" style="display: none;">
     <div class="modal-content" style="max-width: 350px;">
@@ -797,10 +863,13 @@
 
     // === Role Constants (single source of truth) ===
     const IMPOSTOR_SABOTAGE_ROLES = ['Impostor', 'Riddler', 'Rampager', 'Cleaner', 'Venter'];
-    const REAL_TASK_ROLES = ['Crewmate', 'Sheriff', 'Engineer', 'Captain', 'Mayor', 'Bounty Hunter', 'Spy', 'Swapper', 'Noise Maker'];
+    const REAL_TASK_ROLES = ['Crewmate', 'Sheriff', 'Engineer', 'Captain', 'Mayor', 'Bounty Hunter', 'Spy', 'Swapper', 'Noise Maker', 'Lookout'];
     const GUESSER_ROLES = ['Bounty Hunter', 'Riddler'];
     const IMPOSTOR_SUBTYPES = ['Rampager', 'Riddler', 'Cleaner', 'Venter', 'Minion'];
     const KILL_COOLDOWN_ROLES = ['Impostor', 'Rampager', 'Sheriff', 'Lone Wolf'];
+
+    // Lookout state
+    let lookoutSelectablePlayers = [];
 </script>
 <script src="/static/js/game-core.js?v={{ v }}"></script>
 <script src="/static/js/game-sabotage.js?v={{ v }}"></script>

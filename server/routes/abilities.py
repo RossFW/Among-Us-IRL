@@ -6,7 +6,7 @@ from ..models import GameState, PlayerStatus, Role, MeetingState, Vote, VoteType
 import time
 from ..services.ws_manager import ws_manager
 from ..services.game_logic import check_win_conditions, get_role_info, reassign_bounty_target, get_all_roles
-from ..services.game_helpers import check_and_reassign_bounty_targets
+from ..services.game_helpers import check_and_reassign_bounty_targets, check_executioner_fallback
 
 router = APIRouter(prefix="/api", tags=["abilities"])
 
@@ -188,6 +188,8 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
 
     # Auto-reassign bounty targets if the dead player was someone's target
     await check_and_reassign_bounty_targets(game, dead_player.id)
+    # Executioner fallback: if their target dies via guesser, become Jester
+    await check_executioner_fallback(game, dead_player.id)
 
     # Calculate updated vote counts
     alive_count = sum(1 for p in game.players.values() if p.status == PlayerStatus.ALIVE)
@@ -457,4 +459,45 @@ async def swapper_swap_endpoint(code: str, session_token: str, player1_id: str, 
         "success": True,
         "swapped": [player1.name, player2.name],
         "message": f"Votes for {player1.name} and {player2.name} will be swapped!"
+    }
+
+
+@router.post("/games/{code}/ability/lookout-select")
+async def lookout_select_endpoint(code: str, session_token: str, target_player_id: str):
+    """Lookout: Select a player to watch. Get notified when they die outside meetings."""
+    result = game_store.get_player_by_session(session_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    game, player = result
+
+    if player.role != Role.LOOKOUT:
+        raise HTTPException(status_code=403, detail="Not a Lookout")
+
+    if player.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="You are dead")
+
+    if game.state != GameState.PLAYING:
+        raise HTTPException(status_code=400, detail="Can only select during gameplay")
+
+    target = game.players.get(target_player_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    if target.id == player.id:
+        raise HTTPException(status_code=400, detail="Cannot watch yourself")
+
+    if target.status != PlayerStatus.ALIVE:
+        raise HTTPException(status_code=400, detail="Target must be alive")
+
+    # Validate target was alive at last meeting (or allow all if no meeting yet)
+    if game.alive_at_last_meeting and target.id not in game.alive_at_last_meeting:
+        raise HTTPException(status_code=400, detail="Can only select players alive at last meeting")
+
+    player.lookout_target_id = target_player_id
+
+    return {
+        "success": True,
+        "watching": target.name,
+        "message": f"Now watching {target.name}"
     }

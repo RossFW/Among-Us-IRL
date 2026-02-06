@@ -25,3 +25,41 @@ async def check_and_reassign_bounty_targets(game, dead_player_id: str):
                     "bounty_kills": player.bounty_kills
                 }
             })
+
+
+async def check_executioner_fallback(game, dead_player_id: str):
+    """If Executioner's target dies outside voting, convert Executioner to Jester."""
+    for player in game.players.values():
+        if (player.role == Role.EXECUTIONER
+                and player.status == PlayerStatus.ALIVE
+                and player.executioner_target_id == dead_player_id):
+            player.role = Role.JESTER
+            player.executioner_target_id = None
+            await ws_manager.send_to_player(game.code, player.id, {
+                "type": "role_changed",
+                "payload": {
+                    "new_role": "Jester",
+                    "reason": "Your target died. You are now a Jester!"
+                }
+            })
+
+
+async def check_lookout_notify(game, dead_player_id: str):
+    """If any alive Lookout is watching the dead player, send them an alert (PLAYING state only)."""
+    from ..models import GameState
+    if game.state != GameState.PLAYING:
+        return
+    dead_player = game.players.get(dead_player_id)
+    if not dead_player:
+        return
+    for player in game.players.values():
+        if (player.role == Role.LOOKOUT
+                and player.status == PlayerStatus.ALIVE
+                and player.lookout_target_id == dead_player_id):
+            await ws_manager.send_to_player(game.code, player.id, {
+                "type": "lookout_alert",
+                "payload": {
+                    "target_name": dead_player.name,
+                    "message": f"Your watched player {dead_player.name} has been killed!"
+                }
+            })

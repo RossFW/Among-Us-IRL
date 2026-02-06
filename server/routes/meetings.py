@@ -164,6 +164,9 @@ async def end_meeting_endpoint(code: str, session_token: str):
         if player.role in [Role.NICE_GUESSER, Role.EVIL_GUESSER]:
             player.guesser_used_this_meeting = False
 
+    # Snapshot alive players for Lookout selection constraint
+    game.alive_at_last_meeting = [p.id for p in game.get_alive_players()]
+
     # Clear active meeting state
     game.active_meeting = None
     game.state = GameState.PLAYING
@@ -438,6 +441,26 @@ async def reveal_vote_results(game):
 
         # Auto-reassign bounty targets if the eliminated player was someone's target
         await check_and_reassign_bounty_targets(game, eliminated_player.id)
+
+        # Check for Executioner win FIRST (overrides all other win conditions)
+        for p in game.players.values():
+            if (p.role == Role.EXECUTIONER
+                    and p.status == PlayerStatus.ALIVE
+                    and p.executioner_target_id == eliminated_player.id
+                    and p.id in game.active_meeting.votes
+                    and game.active_meeting.votes[p.id].target_id == eliminated_player.id):
+                game.state = GameState.ENDED
+                game.winner = "Executioner"
+                game.active_sabotage = None
+                await ws_manager.broadcast_to_game(game.code, {
+                    "type": "game_ended",
+                    "payload": {
+                        "winner": "Executioner",
+                        "reason": f"{p.name} got their target voted out!",
+                        "roles": get_all_roles(game)
+                    }
+                })
+                return
 
         # Check for Jester win
         if eliminated_player.role == Role.JESTER:

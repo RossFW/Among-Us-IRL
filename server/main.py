@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from pathlib import Path
+import time
 
 from .routes import lobby, game, meetings, abilities, sabotage, websocket
 
@@ -25,6 +26,10 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 # Set up templates
 templates = Jinja2Templates(directory=BASE_DIR / "server" / "templates")
+
+# Cache-busting version (changes every server restart)
+CACHE_VERSION = str(int(time.time()))
+templates.env.globals["v"] = CACHE_VERSION
 
 # Include API routes
 app.include_router(lobby.router)

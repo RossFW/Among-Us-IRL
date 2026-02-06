@@ -173,14 +173,14 @@ async def guesser_guess_endpoint(code: str, session_token: str, target_id: str, 
         target.status = PlayerStatus.DEAD
         dead_player = target
         guesser_survived = True
-        message = f"{player.name} correctly guessed {target.name}'s role!"
+        message = f"{target.name} has been eliminated."
     else:
         # Wrong! Guesser dies. Mark as used so they can't guess again.
         player.guesser_used_this_meeting = True
         player.status = PlayerStatus.DEAD
         dead_player = player
         guesser_survived = False
-        message = f"{player.name} guessed wrong and died!"
+        message = f"{player.name} has been eliminated."
 
     # Scrub dead player's vote if they already voted
     if game.active_meeting and dead_player.id in game.active_meeting.votes:

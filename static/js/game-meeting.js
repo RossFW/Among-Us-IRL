@@ -948,13 +948,13 @@ function openGuesserModal(targetId, targetName) {
         { name: 'Noise Maker', color: '#f59e0b' }
     ];
 
-    // Crew guesser (Bounty Hunter): only show generic "Impostor" option
-    // Impostor guesser (Riddler): show all roles (can guess anyone as anything)
+    // Crew guesser (Bounty Hunter): only needs to guess "Impostor"
+    // Impostor guesser (Riddler): sees crew + neutral roles only (already knows impostors)
     let displayRoles;
     if (myRole === 'Bounty Hunter') {
-        displayRoles = allRoles.filter(r => !IMPOSTOR_SUBTYPES.includes(r.name));
+        displayRoles = allRoles.filter(r => r.name === 'Impostor');
     } else {
-        displayRoles = allRoles;
+        displayRoles = allRoles.filter(r => !IMPOSTOR_SUBTYPES.includes(r.name) && r.name !== 'Impostor');
     }
 
     const options = document.getElementById('guesser-role-options');
